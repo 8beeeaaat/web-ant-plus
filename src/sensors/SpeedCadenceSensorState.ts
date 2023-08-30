@@ -112,10 +112,10 @@ export class SpeedCadenceSensorState {
         cadenceDataChanged && speedDataChanged
           ? "both"
           : cadenceDataChanged
-            ? "cadence"
-            : speedDataChanged
-              ? "speed"
-              : "none"
+          ? "cadence"
+          : speedDataChanged
+          ? "speed"
+          : "none"
     };
   }
 }

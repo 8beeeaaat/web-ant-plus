@@ -1,3 +1,4 @@
+export { USBDriver } from "./USBDriver";
 export { Constants } from "./Constants";
 export { GarminStick2 } from "./GarminStick2";
 export { GarminStick3 } from "./GarminStick3";
