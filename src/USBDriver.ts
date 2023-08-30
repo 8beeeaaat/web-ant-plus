@@ -8,7 +8,18 @@ import { EventEmitter } from "./lib/EventEmitter";
 import { Messages } from "./Messages";
 import { BaseSensor } from "./sensors/BaseSensor";
 
+export interface SupportedVendors {
+  vendor: number;
+  product: number;
+  name: string;
+}
+
 export class USBDriver extends EventEmitter {
+  static supportedDevices: Array<SupportedVendors> = [
+    { vendor: 0x0fcf, product: 0x1008, name: "GarminStick2" },
+    { vendor: 0x0fcf, product: 0x1009, name: "GarminStick3" }
+  ];
+
   private deviceInUse: USBDevice[] = [];
   private attachedSensors: BaseSensor[] = [];
   private device: USBDevice | undefined;
@@ -30,6 +41,58 @@ export class USBDriver extends EventEmitter {
     this.setMaxListeners(50);
   }
 
+  public static async createFromPairedDevice(): Promise<USBDriver | undefined> {
+    const device = (await this.getPairedDevices())?.[0];
+
+    if (device !== undefined) {
+      const driverInstance = new USBDriver(device.vendorId, device.productId);
+      driverInstance.device = device;
+
+      return driverInstance;
+    }
+
+    return undefined;
+  }
+
+  public static async createFromNewDevice(): Promise<USBDriver> {
+    const device = await navigator.usb.requestDevice({
+      filters: this.supportedDevices.map(
+        (
+          supportedDevice: SupportedVendors
+        ): {
+          vendorId: number;
+          productId: number;
+        } => ({
+          vendorId: supportedDevice.vendor,
+          productId: supportedDevice.product
+        })
+      )
+    });
+
+    const driverInstance = new USBDriver(device.vendorId, device.productId);
+    driverInstance.device = device;
+
+    return driverInstance;
+  }
+
+  public static createFromDevice(device: USBDevice): USBDriver {
+    const driverInstance = new USBDriver(device.vendorId, device.productId);
+    driverInstance.device = device;
+
+    return driverInstance;
+  }
+
+  public static async getPairedDevices(): Promise<Array<USBDevice>> {
+    const devices = await navigator.usb.getDevices();
+    return devices.filter(
+      (device: USBDevice): boolean =>
+        ((device.vendorId === this.supportedDevices[0].vendor ||
+          device.vendorId === this.supportedDevices[1].vendor) &&
+          device.productId === this.supportedDevices[0].product) ||
+        device.productId === this.supportedDevices[1].product
+    );
+  }
+
   private async getDevice() {
     const device = await navigator.usb.requestDevice({
       filters: [{ vendorId: this.vendorId, productId: this.productId }]
@@ -43,7 +106,9 @@ export class USBDriver extends EventEmitter {
   }
 
   public async open(): Promise<USBDevice | undefined> {
-    this.device = await this.getDevice();
+    if (this.device === undefined) {
+      this.device = await this.getDevice();
+    }
     try {
       if (this.device === undefined) {
         throw new Error("No device found");
