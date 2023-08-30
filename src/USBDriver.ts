@@ -129,7 +129,7 @@ export class USBDriver extends EventEmitter {
     await this.reset();
     this.interface = undefined;
     if (!this.device) return;
-    this.device.close();
+    await this.device.close();
     this.emit("shutdown");
     const devIdx = this.deviceInUse.indexOf(this.device);
     if (devIdx >= 0) {
@@ -141,7 +141,6 @@ export class USBDriver extends EventEmitter {
 
   public async reset() {
     await this.detach_all();
-    await this.device?.reset();
     this.maxChannels = 0;
     this.usedChannels = 0;
     await this.write(Messages.resetSystem());
