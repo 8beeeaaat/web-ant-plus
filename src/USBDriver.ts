@@ -1,4 +1,9 @@
 import { Constants } from "./Constants";
+import {
+  CancellationError,
+  CancellationToken,
+  ICancellationToken
+} from "./ICancellationToken";
 import { EventEmitter } from "./lib/EventEmitter";
 import { Messages } from "./Messages";
 import { BaseSensor } from "./sensors/BaseSensor";
@@ -12,6 +17,7 @@ export class USBDriver extends EventEmitter {
   private leftover: DataView | undefined;
   private outEndpoint: USBEndpoint | undefined;
   private usedChannels: number = 0;
+  private readInCancellationToken: ICancellationToken = new CancellationToken();
 
   maxChannels: number = 0;
   canScan: boolean = false;
@@ -74,6 +80,7 @@ export class USBDriver extends EventEmitter {
       }
 
       try {
+        this.readInCancellationToken.cancelled();
         const result = await this.device.transferIn(
           this.inEndpoint.endpointNumber,
           this.inEndpoint.packetSize
@@ -117,7 +124,9 @@ export class USBDriver extends EventEmitter {
         }
         await readInEndPoint();
       } catch (error) {
-        throw error;
+        if (!(error instanceof CancellationError)) {
+          throw error;
+        }
       }
     };
 
@@ -126,6 +135,7 @@ export class USBDriver extends EventEmitter {
   }
 
   public async close() {
+    this.readInCancellationToken?.cancel();
     await this.reset();
     this.interface = undefined;
     if (!this.device) return;
