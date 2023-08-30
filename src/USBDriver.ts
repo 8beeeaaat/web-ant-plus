@@ -41,6 +41,9 @@ export class USBDriver extends EventEmitter {
     this.setMaxListeners(50);
   }
 
+  /** Creates a USBDriver instance from an already paired (and permitted) device
+   * @Note If more than one ANT+ stick was paired the USBDriver instance will be created from the first one.
+   */
   public static async createFromPairedDevice(): Promise<USBDriver | undefined> {
     const device = (await this.getPairedDevices())?.[0];
 
@@ -54,6 +57,9 @@ export class USBDriver extends EventEmitter {
     return undefined;
   }
 
+  /** Starts the paring process by opening the dialog box, once USBDevice is connected it will return a USBDriver instance
+   * @Note This method filters the usb devices shown in the dialog box i.e. only ANT+ sticks will be shown.
+   */
   public static async createFromNewDevice(): Promise<USBDriver> {
     const device = await navigator.usb.requestDevice({
       filters: this.supportedDevices.map(
@@ -75,6 +81,9 @@ export class USBDriver extends EventEmitter {
     return driverInstance;
   }
 
+  /** Creates a USBDriver instance from the specified USBDevice
+   * @Note This method does not check if the provided USBDevice is in fact an ANT+ stick.
+   */
   public static createFromDevice(device: USBDevice): USBDriver {
     const driverInstance = new USBDriver(device.vendorId, device.productId);
     driverInstance.device = device;
@@ -82,6 +91,7 @@ export class USBDriver extends EventEmitter {
     return driverInstance;
   }
 
+  /** Gets an array of ANT+ usb sticks that has been previously paired and hence have permission to connect (if any) */
   public static async getPairedDevices(): Promise<Array<USBDevice>> {
     const devices = await navigator.usb.getDevices();
     return devices.filter(

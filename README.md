@@ -14,14 +14,42 @@ This repository was based on [ant-plus the original module for Node.js](https://
 npm install web-ant-plus
 ```
 
-#### Create USB stick GarminStick2 or GarminStick3
+### Create USB stick
+
+There are several ways to create a USB stick that can be used to start/create a sensor:
+
+#### Create a specific USB stick GarminStick2 or GarminStick3
 
 ```typescript
 import { GarminStick3 } from "web-ant-plus";
 const stick = new GarminStick3();
 ```
 
-#### Create sensors
+#### Create USB stick from a new pairing
+
+This method will create a USBDriver (`stick`) from an ANT+ USB stick that has already been paired (i.e. will not open the dialog but rather filter for already paired usb devices). Please note that if more than one ANT+ stick was paired it will chose the first one.
+
+```typescript
+const stick = USBDriver.createFromPairedDevice();
+```
+
+#### Create USB stick from a specific USBDevice instance
+
+This method will create a USBDriver (`stick`) from a USBDevice instance. Please note that this does not do any checks whether USBDevice instance is in fact an ANT+ stick.
+
+```typescript
+const stick = USBDriver.createFromDevice();
+```
+
+#### Create USB stick from an already paired device
+
+This method will open a prompt to pair a usb device to connect to. Once connected it will return a USBDriver instance (`stick`)
+
+```typescript
+const stick = USBDriver.createFromNewDevice();
+```
+
+### Create sensors
 
 ```typescript
 const hrSensor = new HeartRateSensor(stick);
@@ -42,10 +70,10 @@ stick.on("startup", function () {
 #### Open stick
 
 ```typescript
-if (!stick.open()) {
-  console.log("Stick not found!");
-}
+await stick.open();
 ```
+
+Please note that the `open()` method will resolve the promise only once the stick is closed (or rejected due to an error). In this case it will return the underlying USBDevice instance. In practice this should mean that the `open()` method, if awaited, is blocking until the communication with stick terminates.
 
 ### scanning
 
@@ -95,7 +123,7 @@ which has a USB product ID of `0x1009`.
 
 - open()
 
-  - Tries to open the stick. Returns false on failure.
+  - Tries to open the stick. Returns a promise that resolves once the stick is closed (or the promise is rejected due to an error). In this case it will return the underlying USBDevice instance. In practice this should mean that the `open()` method if awaited is blocking until the communication with stick terminates.
 
 - close()
 
@@ -117,7 +145,7 @@ which has a USB product ID of `0x1009`.
 
 ### Common to all Sensors
 
-#### methods
+#### Sensors methods
 
 - attach(channel: number, deviceID: number)
 
@@ -127,7 +155,7 @@ which has a USB product ID of `0x1009`.
 
   - Detaches the sensor.
 
-#### events
+#### Sensors events
 
 - attached
 
@@ -139,7 +167,7 @@ which has a USB product ID of `0x1009`.
 
 ### Common to all Scanners
 
-#### methods
+#### Scanners methods
 
 - scan()
 
@@ -149,7 +177,7 @@ which has a USB product ID of `0x1009`.
 
   - Detaches the sensor.
 
-#### events
+#### Scanners events
 
 - attached
 
@@ -161,7 +189,7 @@ which has a USB product ID of `0x1009`.
 
 ### HeartRate
 
-#### events
+#### HeartRate events
 
 - hbData
 
@@ -169,13 +197,13 @@ which has a USB product ID of `0x1009`.
 
 ### SpeedCadence
 
-#### methods
+#### SpeedCadence methods
 
 #### setWheelCircumference(circumferenceInMeters)
 
 Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199).
 
-#### events
+#### SpeedCadence events
 
 - speedData
 
@@ -187,7 +215,7 @@ Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199)
 
 ### StrideSpeedDistance
 
-#### events
+#### StrideSpeedDistance events
 
 - ssdData
 
@@ -195,7 +223,7 @@ Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199)
 
 ### BicyclePower
 
-#### events
+#### BicyclePower events
 
 - powerData
 
@@ -203,7 +231,7 @@ Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199)
 
 ### FitnessEquipment
 
-#### events
+#### FitnessEquipment events
 
 - fitnessData
 
@@ -211,7 +239,7 @@ Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199)
 
 ### Environment
 
-#### events
+#### Environment events
 
 - envData
 
@@ -219,7 +247,7 @@ Calibrates the speed sensor. Defaults to a wheel with diameter of 70cm (= 2.199)
   - The `state.EventCount` value can be used to tell when a new measurement has been made by the sensor -
     it's value will have been incremented.
 
-```
+```text
 This software is subject to the ANT+ Shared Source License www.thisisant.com/swlicenses
 Copyright (c) Garmin Canada Inc. 2018
 All rights reserved.
