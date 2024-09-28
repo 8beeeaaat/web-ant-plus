@@ -5,7 +5,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["DOM", "ESNext"],
-    "module": "commonjs",
+    "module": "ES6",
     "moduleResolution": "node",
     "outDir": "./dist",
     "skipLibCheck": true,
