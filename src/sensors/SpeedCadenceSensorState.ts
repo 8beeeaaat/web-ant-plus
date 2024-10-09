@@ -30,7 +30,7 @@ export class SpeedCadenceSensorState {
 
   updateState(
     data: DataView,
-    wheelCircumference: number
+    wheelCircumference: number,
   ): {
     updatedState: SpeedCadenceSensorState;
     resultType: "cadence" | "speed" | "both" | "none";
@@ -45,11 +45,11 @@ export class SpeedCadenceSensorState {
     let cadenceCount = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 2, true);
     let speedEventTime = data.getUint16(
       Messages.BUFFER_INDEX_MSG_DATA + 4,
-      true
+      true,
     );
     let speedRevolutionCount = data.getUint16(
       Messages.BUFFER_INDEX_MSG_DATA + 6,
-      true
+      true,
     );
 
     let cadenceDataChanged = false;
@@ -72,7 +72,7 @@ export class SpeedCadenceSensorState {
       const cadence =
         (60 * (cadenceCount - (oldCadenceCount || 0)) * 1024) /
         (cadenceTime - (oldCadenceTime || 0));
-      if (!isNaN(cadence)) {
+      if (!Number.isNaN(cadence)) {
         this.CalculatedCadence = cadence;
         cadenceDataChanged = true;
       }
@@ -98,7 +98,7 @@ export class SpeedCadenceSensorState {
 
       // speed in m/sec
       const speed = (distance * 1024) / (speedEventTime - (oldSpeedTime || 0));
-      if (!isNaN(speed)) {
+      if (!Number.isNaN(speed)) {
         this.CalculatedSpeed = speed;
         speedDataChanged = true;
       }
@@ -112,10 +112,10 @@ export class SpeedCadenceSensorState {
         cadenceDataChanged && speedDataChanged
           ? "both"
           : cadenceDataChanged
-          ? "cadence"
-          : speedDataChanged
-          ? "speed"
-          : "none"
+            ? "cadence"
+            : speedDataChanged
+              ? "speed"
+              : "none",
     };
   }
 }

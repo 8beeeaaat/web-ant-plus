@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   BicyclePowerSensor,
-  GarminStick3,
+  type BicyclePowerSensorState,
+  GarminStick2,
+  type GarminStick3,
   HeartRateSensor,
-  SpeedCadenceSensor
+  type HeartRateSensorState,
+  SpeedCadenceSensor,
+  type SpeedCadenceSensorState,
 } from "../../src";
-import { Constants } from "../../src/Constants";
-import { GarminStick2 } from "../../src/GarminStick2";
-import { Messages } from "../../src/Messages";
-import { BicyclePowerSensorState } from "../../src/sensors/BicyclePowerSensorState";
-import { HeartRateSensorState } from "../../src/sensors/HeartRateSensorState";
-import { SpeedCadenceSensorState } from "../../src/sensors/SpeedCadenceSensorState";
 import "./App.css";
 import reactLogo from "./assets/react.svg";
 
@@ -29,10 +27,10 @@ function App() {
   const [heartbeat, setHeartbeat] = useState(0);
   const [hrState, setHRState] = useState<Array<HeartRateSensorState>>([]);
   const [speedState, setSpeedState] = useState<Array<SpeedCadenceSensorState>>(
-    []
+    [],
   );
   const [powerState, setPowerState] = useState<Array<BicyclePowerSensorState>>(
-    []
+    [],
   );
 
   useEffect(() => {
@@ -42,10 +40,10 @@ function App() {
     }
     if (heartRateSensor) {
       heartRateSensor.on("attached", () =>
-        console.log("heartRateSensor attached")
+        console.log("heartRateSensor attached"),
       );
       heartRateSensor.on("detached", () =>
-        console.log("heartRateSensor detached")
+        console.log("heartRateSensor detached"),
       );
 
       heartRateSensor.on("hbData", onHeartRateData);
@@ -54,10 +52,10 @@ function App() {
     }
     if (speedCadenceSensor) {
       speedCadenceSensor.on("attached", () =>
-        console.log("speedCadenceSensor attached")
+        console.log("speedCadenceSensor attached"),
       );
       speedCadenceSensor.on("detached", () =>
-        console.log("speedCadenceSensor detached")
+        console.log("speedCadenceSensor detached"),
       );
       speedCadenceSensor.setWheelCircumference(2.12);
 
@@ -68,10 +66,10 @@ function App() {
 
     if (bicyclePowerSensor) {
       bicyclePowerSensor.on("attached", () =>
-        console.log("bicyclePowerSensor attached")
+        console.log("bicyclePowerSensor attached"),
       );
       bicyclePowerSensor.on("detached", () =>
-        console.log("bicyclePowerSensor detached")
+        console.log("bicyclePowerSensor detached"),
       );
 
       bicyclePowerSensor.on("powerData", onBicyclePowerData);
@@ -79,14 +77,6 @@ function App() {
       setBicyclePowerSensor(new BicyclePowerSensor(stick));
     }
   }, [stick, heartRateSensor, speedCadenceSensor, bicyclePowerSensor]);
-
-  useEffect(() => {
-    if (heartbeat > 0) {
-      return;
-    }
-    stick?.write(Messages.requestMessage(0, Constants.MESSAGE_TX_SYNC));
-    setHeartbeat(0);
-  }, [heartbeat]);
 
   const onHeartRateData = (state: HeartRateSensorState) => {
     console.log(state);
@@ -124,7 +114,7 @@ function App() {
             : null;
           setConnected(true);
         } catch (error) {
-          throw error;
+          console.error(error);
         }
       });
       stick.once("shutdown", async () => {
@@ -166,7 +156,7 @@ function App() {
     : undefined;
 
   const sumCalculatedCadence = powerState.reduce<number>((sum, state) => {
-    if (state && state.Cadence) {
+    if (state?.Cadence) {
       return sum + state.Cadence / 3;
     }
     return sum;
@@ -175,7 +165,7 @@ function App() {
   return (
     <div className="App">
       <div>
-        <a href="https://reactjs.org" target="_blank">
+        <a href="https://reactjs.org" target="_blank" rel="noreferrer">
           <img
             src={reactLogo}
             className="logo react"
@@ -183,7 +173,7 @@ function App() {
             style={{
               transform: `rotate(${sumCalculatedCadence}deg) scale(${
                 newestPowerState?.Power ? newestPowerState.Power / 200 : 1
-              })`
+              })`,
             }}
           />
         </a>
@@ -191,13 +181,13 @@ function App() {
       <h1
         style={{
           display: "flex",
-          alignItems: "start"
+          alignItems: "start",
         }}
       >
         WebUSB ANT+
         <span
           style={{
-            fontSize: "0.5em"
+            fontSize: "0.5em",
           }}
         >
           ®
@@ -220,13 +210,13 @@ function App() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "auto"
+                  margin: "auto",
                 }}
               >
                 {newestHRState?.ComputedHeartRate}
                 <span
                   style={{
-                    fontSize: "0.5em"
+                    fontSize: "0.5em",
                   }}
                 >
                   bpm
@@ -241,15 +231,15 @@ function App() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "auto"
+                  margin: "auto",
                 }}
               >
                 {meterPerSecToKmPerHour(
-                  newestSpeedState?.CalculatedSpeed || 0
+                  newestSpeedState?.CalculatedSpeed || 0,
                 ).toFixed(1)}
                 <span
                   style={{
-                    fontSize: "0.5em"
+                    fontSize: "0.5em",
                   }}
                 >
                   km/h
@@ -264,13 +254,13 @@ function App() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "auto"
+                  margin: "auto",
                 }}
               >
                 {newestPowerState?.Cadence}
                 <span
                   style={{
-                    fontSize: "0.5em"
+                    fontSize: "0.5em",
                   }}
                 >
                   rpm
@@ -285,13 +275,13 @@ function App() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "auto"
+                  margin: "auto",
                 }}
               >
                 {newestPowerState?.Power?.toFixed(1)}
                 <span
                   style={{
-                    fontSize: "0.5em"
+                    fontSize: "0.5em",
                   }}
                 >
                   w

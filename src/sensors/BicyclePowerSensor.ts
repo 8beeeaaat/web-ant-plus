@@ -18,7 +18,7 @@ export class BicyclePowerSensor extends AntPlusSensor {
       deviceType: BicyclePowerSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8182
+      period: 8182,
     });
     this.state = new BicyclePowerSensorState(deviceID);
   }

@@ -1,6 +1,6 @@
 import { Constants } from "../Constants";
-import { GarminStick2 } from "../GarminStick2";
-import { GarminStick3 } from "../GarminStick3";
+import type { GarminStick2 } from "../GarminStick2";
+import type { GarminStick3 } from "../GarminStick3";
 import { Messages } from "../Messages";
 import { AntPlusBaseSensor } from "./AntPlusBaseSensor";
 
@@ -12,7 +12,7 @@ export abstract class AntPlusScanner extends AntPlusBaseSensor {
   protected abstract updateRssiAndThreshold(
     deviceId: number,
     rssi: number,
-    threshold: number
+    threshold: number,
   ): void;
 
   constructor(stick: GarminStick2 | GarminStick3) {
@@ -43,7 +43,7 @@ export abstract class AntPlusScanner extends AntPlusBaseSensor {
 
     const deviceId = data.getUint16(
       Messages.BUFFER_INDEX_EXT_MSG_BEGIN + 1,
-      true
+      true,
     );
     const deviceType = data.getUint8(Messages.BUFFER_INDEX_EXT_MSG_BEGIN + 3);
 
@@ -58,7 +58,7 @@ export abstract class AntPlusScanner extends AntPlusBaseSensor {
         this.updateRssiAndThreshold(
           deviceId,
           data.getInt8(Messages.BUFFER_INDEX_EXT_MSG_BEGIN + 6),
-          data.getInt8(Messages.BUFFER_INDEX_EXT_MSG_BEGIN + 7)
+          data.getInt8(Messages.BUFFER_INDEX_EXT_MSG_BEGIN + 7),
         );
       }
     }

@@ -1,9 +1,9 @@
 import { Constants } from "../Constants";
-import { GarminStick2 } from "../GarminStick2";
-import { GarminStick3 } from "../GarminStick3";
+import type { GarminStick2 } from "../GarminStick2";
+import type { GarminStick3 } from "../GarminStick3";
 import { Messages } from "../Messages";
 import { AntPlusBaseSensor } from "./AntPlusBaseSensor";
-import { AttachProps } from "./BaseSensor";
+import type { AttachProps } from "./BaseSensor";
 
 export abstract class AntPlusSensor extends AntPlusBaseSensor {
   constructor(stick: GarminStick2 | GarminStick3) {
@@ -26,7 +26,10 @@ export abstract class AntPlusSensor extends AntPlusBaseSensor {
       case Constants.MESSAGE_CHANNEL_BURST_DATA:
         if (this.channel !== undefined && this.deviceID === 0) {
           this.write(
-            Messages.requestMessage(this.channel, Constants.MESSAGE_CHANNEL_ID)
+            this.stick.messages.requestMessage(
+              this.channel,
+              Constants.MESSAGE_CHANNEL_ID,
+            ),
           );
         }
         if (this.deviceID !== undefined) {
@@ -36,7 +39,7 @@ export abstract class AntPlusSensor extends AntPlusBaseSensor {
       case Constants.MESSAGE_CHANNEL_ID:
         this.deviceID = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA, true);
         this.transmissionType = data.getUint8(
-          Messages.BUFFER_INDEX_MSG_DATA + 3
+          Messages.BUFFER_INDEX_MSG_DATA + 3,
         );
         break;
       default:

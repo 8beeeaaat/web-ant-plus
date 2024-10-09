@@ -24,7 +24,7 @@ export class SpeedSensor extends AntPlusSensor {
       deviceType: SpeedSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8086
+      period: 8086,
     });
     this.state = new SpeedSensorState(deviceID);
   }

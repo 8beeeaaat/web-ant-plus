@@ -2,11 +2,11 @@ import { Constants } from "./Constants";
 import {
   CancellationError,
   CancellationToken,
-  ICancellationToken
+  type ICancellationToken,
 } from "./ICancellationToken";
-import { EventEmitter } from "./lib/EventEmitter";
 import { Messages } from "./Messages";
-import { BaseSensor } from "./sensors/BaseSensor";
+import { EventEmitter } from "./lib/EventEmitter";
+import type { BaseSensor } from "./sensors/BaseSensor";
 
 export interface SupportedVendors {
   vendor: number;
@@ -17,7 +17,7 @@ export interface SupportedVendors {
 export class USBDriver extends EventEmitter {
   static supportedDevices: Array<SupportedVendors> = [
     { vendor: 0x0fcf, product: 0x1008, name: "GarminStick2" },
-    { vendor: 0x0fcf, product: 0x1009, name: "GarminStick3" }
+    { vendor: 0x0fcf, product: 0x1009, name: "GarminStick3" },
   ];
 
   private deviceInUse: USBDevice[] = [];
@@ -27,15 +27,16 @@ export class USBDriver extends EventEmitter {
   private interface: USBInterface | undefined;
   private leftover: DataView | undefined;
   private outEndpoint: USBEndpoint | undefined;
-  private usedChannels: number = 0;
+  private usedChannels = 0;
   private readInCancellationToken: ICancellationToken = new CancellationToken();
 
-  maxChannels: number = 0;
-  canScan: boolean = false;
+  maxChannels = 0;
+  canScan = false;
+  messages = new Messages();
 
   constructor(
     private vendorId: number,
-    private productId: number
+    private productId: number,
   ) {
     super();
     this.setMaxListeners(50);
@@ -45,7 +46,7 @@ export class USBDriver extends EventEmitter {
    * @Note If more than one ANT+ stick was paired the USBDriver instance will be created from the first one.
    */
   public static async createFromPairedDevice(): Promise<USBDriver | undefined> {
-    const device = (await this.getPairedDevices())?.[0];
+    const device = (await USBDriver.getPairedDevices())?.[0];
 
     if (device !== undefined) {
       const driverInstance = new USBDriver(device.vendorId, device.productId);
@@ -62,17 +63,17 @@ export class USBDriver extends EventEmitter {
    */
   public static async createFromNewDevice(): Promise<USBDriver> {
     const device = await navigator.usb.requestDevice({
-      filters: this.supportedDevices.map(
+      filters: USBDriver.supportedDevices.map(
         (
-          supportedDevice: SupportedVendors
+          supportedDevice: SupportedVendors,
         ): {
           vendorId: number;
           productId: number;
         } => ({
           vendorId: supportedDevice.vendor,
-          productId: supportedDevice.product
-        })
-      )
+          productId: supportedDevice.product,
+        }),
+      ),
     });
 
     const driverInstance = new USBDriver(device.vendorId, device.productId);
@@ -96,16 +97,16 @@ export class USBDriver extends EventEmitter {
     const devices = await navigator.usb.getDevices();
     return devices.filter(
       (device: USBDevice): boolean =>
-        ((device.vendorId === this.supportedDevices[0].vendor ||
-          device.vendorId === this.supportedDevices[1].vendor) &&
-          device.productId === this.supportedDevices[0].product) ||
-        device.productId === this.supportedDevices[1].product
+        ((device.vendorId === USBDriver.supportedDevices[0].vendor ||
+          device.vendorId === USBDriver.supportedDevices[1].vendor) &&
+          device.productId === USBDriver.supportedDevices[0].product) ||
+        device.productId === USBDriver.supportedDevices[1].product,
     );
   }
 
   private async getDevice() {
     const device = await navigator.usb.requestDevice({
-      filters: [{ vendorId: this.vendorId, productId: this.productId }]
+      filters: [{ vendorId: this.vendorId, productId: this.productId }],
     });
     return device;
   }
@@ -119,25 +120,21 @@ export class USBDriver extends EventEmitter {
     if (this.device === undefined) {
       this.device = await this.getDevice();
     }
-    try {
-      if (this.device === undefined) {
-        throw new Error("No device found");
-      }
-      await this.device.open();
-      if (this.device.configuration?.interfaces[0] === undefined) {
-        throw new Error("No interface found");
-      }
-      this.interface = this.device.configuration?.interfaces[0];
-      await this.device.claimInterface(this.interface.interfaceNumber);
-    } catch (err) {
-      throw err;
+    if (this.device === undefined) {
+      throw new Error("No device found");
     }
+    await this.device.open();
+    if (this.device.configuration?.interfaces[0] === undefined) {
+      throw new Error("No interface found");
+    }
+    this.interface = this.device.configuration?.interfaces[0];
+    await this.device.claimInterface(this.interface.interfaceNumber);
     this.deviceInUse.push(this.device);
     this.inEndpoint = this.interface?.alternate.endpoints.find(
-      (e) => e.direction === "in"
+      (e) => e.direction === "in",
     );
     this.outEndpoint = this.interface?.alternate.endpoints.find(
-      (e) => e.direction === "out"
+      (e) => e.direction === "out",
     );
 
     if (!this.inEndpoint || !this.outEndpoint) {
@@ -158,7 +155,7 @@ export class USBDriver extends EventEmitter {
         this.readInCancellationToken.cancelled();
         const result = await this.device.transferIn(
           this.inEndpoint.endpointNumber,
-          this.inEndpoint.packetSize
+          this.inEndpoint.packetSize,
         );
         if (!result.data) {
           return;
@@ -166,7 +163,7 @@ export class USBDriver extends EventEmitter {
         let data = result.data;
         if (this.leftover) {
           const tmp = new Uint8Array(
-            this.leftover.byteLength + data.byteLength
+            this.leftover.byteLength + data.byteLength,
           );
           tmp.set(new Uint8Array(this.leftover.buffer), 0);
           tmp.set(new Uint8Array(data.buffer), this.leftover.byteLength);
@@ -191,7 +188,7 @@ export class USBDriver extends EventEmitter {
               break;
             }
             const readData = new DataView(
-              data.buffer.slice(beginBlock, endBlock)
+              data.buffer.slice(beginBlock, endBlock),
             );
             this.read(readData);
             beginBlock = endBlock;
@@ -228,7 +225,7 @@ export class USBDriver extends EventEmitter {
     await this.detach_all();
     this.maxChannels = 0;
     this.usedChannels = 0;
-    await this.write(Messages.resetSystem());
+    await this.write(this.messages.resetSystem());
   }
 
   public isScanning(): boolean {
@@ -268,32 +265,28 @@ export class USBDriver extends EventEmitter {
     return true;
   }
 
-  public detach_all(): Promise<void[]> {
+  public detach_all() {
     const copy = this.attachedSensors;
     return Promise.all(copy.map((s) => s.detach()));
   }
 
   public async write(data: DataView) {
-    try {
-      if (this.outEndpoint === undefined) {
-        throw new Error("No out endpoint");
-      }
-      await this.device?.transferOut(this.outEndpoint?.endpointNumber, data);
-    } catch (error) {
-      throw error;
+    if (this.outEndpoint === undefined) {
+      throw new Error("No out endpoint");
     }
+    await this.device?.transferOut(this.outEndpoint?.endpointNumber, data);
   }
 
   public async read(data: DataView) {
     const messageID = data.getUint8(2);
     if (messageID === Constants.MESSAGE_STARTUP) {
       await this.write(
-        Messages.requestMessage(0, Constants.MESSAGE_CAPABILITIES)
+        this.messages.requestMessage(0, Constants.MESSAGE_CAPABILITIES),
       );
     } else if (messageID === Constants.MESSAGE_CAPABILITIES) {
       this.maxChannels = data.getUint8(3);
       this.canScan = (data.getUint8(7) & 0x06) === 0x06;
-      await this.write(Messages.setNetworkKey());
+      await this.write(this.messages.setNetworkKey());
     } else if (
       messageID === Constants.MESSAGE_CHANNEL_EVENT &&
       data.getUint8(4) === Constants.MESSAGE_NETWORK_KEY

@@ -7,8 +7,7 @@ export class CancellationToken implements ICancellationToken {
   get isCancelled(): boolean {
     return this._isCancelled;
   }
-  _isCancelled: boolean = false;
-  constructor() {}
+  _isCancelled = false;
   cancelled() {
     if (this._isCancelled) {
       this._isCancelled = false;

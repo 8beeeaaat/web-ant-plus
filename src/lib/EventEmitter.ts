@@ -1,17 +1,14 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable @typescript-eslint/ban-types */
 // Folk: https://github.com/deno-library/events/blob/master/mod.ts
+// biome-ignore lint/suspicious/noExplicitAny: no-explicit-any
+type AnyFunction = (...args: any[]) => any;
 
-export interface WrappedFunction extends Function {
-  listener: Function;
+export interface WrappedFunction extends AnyFunction {
+  listener: AnyFunction;
 }
 
 export class EventEmitter {
-  private events: Map<string | symbol, Array<Function>> = new Map();
-
+  private events: Map<string, Array<AnyFunction>> = new Map();
+  private warned: Map<string, boolean> = new Map();
   private maxListeners?: number;
 
   #defaultMaxListeners = 10;
@@ -23,18 +20,18 @@ export class EventEmitter {
   set defaultMaxListeners(n) {
     if (Number.isInteger(n) || n < 0) {
       const error = new RangeError(
-        `The value of "defaultMaxListeners" is out of range. It must be a non-negative integer. Received ${n}.`
+        `The value of "defaultMaxListeners" is out of range. It must be a non-negative integer. Received ${n}.`,
       );
       throw error;
     }
     this.#defaultMaxListeners = n;
   }
 
-  addListener(eventName: string | symbol, listener: Function) {
+  addListener(eventName: string, listener: AnyFunction) {
     return this.on(eventName, listener);
   }
 
-  emit(eventName: string | symbol, ...args: unknown[]) {
+  emit(eventName: string, ...args: unknown[]) {
     const listeners = this.events.get(eventName);
     if (listeners === undefined) {
       if (eventName === "error") {
@@ -57,7 +54,7 @@ export class EventEmitter {
   setMaxListeners(n: number) {
     if (!Number.isInteger(n) || n < 0) {
       throw new RangeError(
-        `The value of "n" is out of range. It must be a non-negative integer. Received ${n}.`
+        `The value of "n" is out of range. It must be a non-negative integer. Received ${n}.`,
       );
     }
     this.maxListeners = n;
@@ -71,7 +68,7 @@ export class EventEmitter {
     return this.maxListeners;
   }
 
-  listenerCount(eventName: string | symbol) {
+  listenerCount(eventName: string) {
     const events = this.events.get(eventName);
     return events === undefined ? 0 : events.length;
   }
@@ -80,20 +77,23 @@ export class EventEmitter {
     return Reflect.ownKeys(this.events);
   }
 
-  listeners(eventName: string | symbol) {
+  listeners(eventName: string) {
     const listeners = this.events.get(eventName);
     return listeners === undefined ? [] : listeners;
   }
 
-  off(eventName: string | symbol, listener: Function) {
+  off(eventName: string, listener: AnyFunction) {
     return this.removeListener(eventName, listener);
   }
 
-  on(eventName: string | symbol, listener: Function, prepend?: boolean): this {
+  on(eventName: string, listener: AnyFunction, prepend?: boolean): this {
     if (this.events.has(eventName) === false) {
       this.events.set(eventName, []);
     }
-    const events = this.events.get(eventName) as any;
+    const events = this.events.get(eventName);
+    if (events === undefined) {
+      throw new Error("events is undefined");
+    }
     if (prepend) {
       events.unshift(listener);
     } else {
@@ -106,28 +106,31 @@ export class EventEmitter {
     }
 
     // warn
+    const warned = this.warned.get(eventName);
     const maxListener = this.getMaxListeners();
     const eventLength = events.length;
-    if (maxListener > 0 && eventLength > maxListener && !events.warned) {
-      events.warned = true;
+    if (maxListener > 0 && eventLength > maxListener && !warned) {
+      this.warned.set(eventName, true);
       const warning = new Error(
         `Possible EventEmitter memory leak detected.
          ${this.listenerCount(eventName)} ${eventName.toString()} listeners.
-         Use emitter.setMaxListeners() to increase limit`
+         Use emitter.setMaxListeners() to increase limit`,
       );
       warning.name = "MaxListenersExceededWarning";
       console.warn(warning);
+    } else {
+      this.warned.set(eventName, false);
     }
 
     return this;
   }
 
-  removeAllListeners(eventName: string | symbol) {
+  removeAllListeners(eventName: string) {
     const { events } = this;
 
     // Not listening for removeListener, no need to emit
     if (!events.has("removeListener")) {
-      if (arguments.length === 0) {
+      if (eventName.length === 0) {
         this.events = new Map();
       } else if (events.has(eventName)) {
         events.delete(eventName);
@@ -136,7 +139,7 @@ export class EventEmitter {
     }
 
     // Emit removeListener for all listeners on all events
-    if (arguments.length === 0) {
+    if (eventName.length === 0) {
       for (const key of events.keys()) {
         if (key !== "removeListener") {
           this.removeAllListeners(key);
@@ -149,15 +152,15 @@ export class EventEmitter {
 
     const listeners = events.get(eventName);
     if (listeners !== undefined) {
-      listeners.forEach((listener) => {
+      for (const listener of listeners) {
         this.removeListener(eventName, listener);
-      });
+      }
     }
 
     return this;
   }
 
-  removeListener(eventName: string | symbol, listener: Function) {
+  removeListener(eventName: string, listener: AnyFunction) {
     const { events } = this;
     if (events.size === 0) return this;
 
@@ -166,7 +169,7 @@ export class EventEmitter {
 
     const index = list.findIndex(
       (item) =>
-        item === listener || (item as WrappedFunction).listener === listener
+        item === listener || (item as WrappedFunction).listener === listener,
     );
 
     if (index === -1) return this;
@@ -181,23 +184,21 @@ export class EventEmitter {
     return this;
   }
 
-  once(eventName: string | symbol, listener: Function): this {
+  once(eventName: string, listener: AnyFunction): this {
     this.on(eventName, this.onceWrap(eventName, listener));
     return this;
   }
 
-  private onceWrap(
-    eventName: string | symbol,
-    listener: Function
-  ): WrappedFunction {
+  private onceWrap(eventName: string, listener: AnyFunction): WrappedFunction {
     const wrapper = function (
       this: {
-        eventName: string | symbol;
-        listener: Function;
-        wrapedListener: Function;
+        eventName: string;
+        listener: AnyFunction;
+        wrapedListener: AnyFunction;
         context: EventEmitter;
       },
-      ...args: any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: no-explicit-any
+      ...args: any[]
     ): void {
       this.context.removeListener(this.eventName, this.wrapedListener);
       this.listener.apply(this.context, args);
@@ -206,7 +207,7 @@ export class EventEmitter {
       eventName,
       listener,
       wrapedListener: wrapper as unknown as WrappedFunction,
-      context: this
+      context: this,
     };
     const wrapped = wrapper.bind(wrapperContext) as unknown as WrappedFunction;
     wrapperContext.wrapedListener = wrapped;
@@ -214,16 +215,16 @@ export class EventEmitter {
     return wrapped;
   }
 
-  prependListener(eventName: string | symbol, listener: Function) {
+  prependListener(eventName: string, listener: AnyFunction) {
     return this.on(eventName, listener, true);
   }
 
-  prependOnceListener(eventName: string | symbol, listener: Function) {
+  prependOnceListener(eventName: string, listener: AnyFunction) {
     this.prependListener(eventName, this.onceWrap(eventName, listener));
     return this;
   }
 
-  rawListeners(eventName: string | symbol) {
+  rawListeners(eventName: string) {
     const { events } = this;
     if (events === undefined) return [];
     const listeners = events.get(eventName);

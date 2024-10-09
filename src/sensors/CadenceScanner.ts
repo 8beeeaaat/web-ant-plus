@@ -30,7 +30,7 @@ export class CadenceScanner extends AntPlusScanner {
   protected updateRssiAndThreshold(
     deviceId: number,
     rssi: number,
-    threshold: number
+    threshold: number,
   ) {
     this.states[deviceId].Rssi = rssi;
     this.states[deviceId].Threshold = threshold;

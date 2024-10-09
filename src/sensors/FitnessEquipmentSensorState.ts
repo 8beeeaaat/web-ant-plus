@@ -94,38 +94,42 @@ export class FitnessEquipmentSensorState {
 
   SerialNumber?: number;
 
-  PairedDevices: any[] = [];
+  PairedDevices: {
+    id: number;
+    type: number;
+    paired: boolean;
+  }[] = [];
 
   ReceivedAt?: number;
 
   resetState() {
-    delete this.ElapsedTime;
-    delete this.Distance;
-    delete this.RealSpeed;
-    delete this.VirtualSpeed;
-    delete this.HeartRate;
-    delete this.HeartRateSource;
-    delete this.CycleLength;
-    delete this.Incline;
-    delete this.Resistance;
-    delete this.METs;
-    delete this.CaloricBurnRate;
-    delete this.Calories;
-    delete this._EventCount0x19;
-    delete this._EventCount0x1A;
-    delete this.Cadence;
-    delete this.AccumulatedPower;
-    delete this.InstantaneousPower;
-    delete this.AveragePower;
-    delete this.TrainerStatus;
-    delete this.TargetStatus;
-    delete this.AscendedDistance;
-    delete this.DescendedDistance;
-    delete this.Strides;
-    delete this.Strokes;
-    delete this.WheelTicks;
-    delete this.WheelPeriod;
-    delete this.Torque;
+    this.ElapsedTime = undefined;
+    this.Distance = undefined;
+    this.RealSpeed = undefined;
+    this.VirtualSpeed = undefined;
+    this.HeartRate = undefined;
+    this.HeartRateSource = undefined;
+    this.CycleLength = undefined;
+    this.Incline = undefined;
+    this.Resistance = undefined;
+    this.METs = undefined;
+    this.CaloricBurnRate = undefined;
+    this.Calories = undefined;
+    this._EventCount0x19 = undefined;
+    this._EventCount0x1A = undefined;
+    this.Cadence = undefined;
+    this.AccumulatedPower = undefined;
+    this.InstantaneousPower = undefined;
+    this.AveragePower = undefined;
+    this.TrainerStatus = undefined;
+    this.TargetStatus = undefined;
+    this.AscendedDistance = undefined;
+    this.DescendedDistance = undefined;
+    this.Strides = undefined;
+    this.Strokes = undefined;
+    this.WheelTicks = undefined;
+    this.WheelPeriod = undefined;
+    this.Torque = undefined;
   }
 
   updateState(data: DataView): FitnessEquipmentSensorState {
@@ -140,20 +144,20 @@ export class FitnessEquipmentSensorState {
         if (calBF & 0x40) {
           this.ZeroOffset = data.getUint16(
             Messages.BUFFER_INDEX_MSG_DATA + 4,
-            true
+            true,
           );
         }
         if (calBF & 0x80) {
           this.SpinDownTime = data.getUint16(
             Messages.BUFFER_INDEX_MSG_DATA + 6,
-            true
+            true,
           );
         }
         break;
       }
       case 0x10: {
         const equipmentTypeBF = data.getUint8(
-          Messages.BUFFER_INDEX_MSG_DATA + 1
+          Messages.BUFFER_INDEX_MSG_DATA + 1,
         );
         switch (equipmentTypeBF & 0x1f) {
           case 19:
@@ -204,8 +208,8 @@ export class FitnessEquipmentSensorState {
               break;
             }
             default: {
-              delete this.HeartRate;
-              delete this.HeartRateSource;
+              this.HeartRate = undefined;
+              this.HeartRateSource = undefined;
               break;
             }
           }
@@ -232,13 +236,13 @@ export class FitnessEquipmentSensorState {
           }
           this.Distance = (this.Distance || 0) + distance - oldDistance;
         } else {
-          delete this.Distance;
+          this.Distance = undefined;
         }
         if (capStateBF & 0x08) {
           this.VirtualSpeed = speed / 1000;
-          delete this.RealSpeed;
+          this.RealSpeed = undefined;
         } else {
-          delete this.VirtualSpeed;
+          this.VirtualSpeed = undefined;
           this.RealSpeed = speed / 1000;
         }
         switch ((capStateBF & 0x70) >> 4) {
@@ -256,7 +260,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (capStateBF & 0x80) {
@@ -293,7 +297,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (capStateBF & 0x80) {
@@ -305,7 +309,7 @@ export class FitnessEquipmentSensorState {
         const mets = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 2, true);
         const caloricbr = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 4,
-          true
+          true,
         );
         const calories = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 6);
         const capStateBF = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 7);
@@ -333,7 +337,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (capStateBF & 0x80) {
@@ -388,7 +392,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -448,7 +452,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -496,7 +500,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -544,7 +548,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -592,7 +596,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -654,7 +658,7 @@ export class FitnessEquipmentSensorState {
             this.TargetStatus = "HighSpeed";
             break;
           default:
-            delete this.TargetStatus;
+            this.TargetStatus = undefined;
             break;
         }
 
@@ -673,7 +677,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -689,11 +693,11 @@ export class FitnessEquipmentSensorState {
         let wheelTicks = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2);
         let accWheelPeriod = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 3,
-          true
+          true,
         );
         let accTorque = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 5,
-          true
+          true,
         );
         const flagStateBF = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 7);
 
@@ -745,7 +749,7 @@ export class FitnessEquipmentSensorState {
             this.State = "FINISHED";
             break;
           default:
-            delete this.State;
+            this.State = undefined;
             break;
         }
         if (flagStateBF & 0x80) {
@@ -759,7 +763,7 @@ export class FitnessEquipmentSensorState {
         this.ManId = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 4, true);
         this.ModelNum = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 6,
-          true
+          true,
         );
         break;
       }
@@ -796,7 +800,7 @@ export class FitnessEquipmentSensorState {
           this.PairedDevices.push({
             id: devId,
             type: devType,
-            paired: !!(chState & 0x80)
+            paired: !!(chState & 0x80),
           });
         }
 

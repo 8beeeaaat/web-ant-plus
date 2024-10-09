@@ -128,7 +128,7 @@ export class CadenceSensorState {
       const cadence =
         (60 * (cadenceCount - (oldCadenceCount || 0)) * 1024) /
         (cadenceTime - (oldCadenceTime || 0));
-      if (!isNaN(cadence)) {
+      if (!Number.isNaN(cadence)) {
         this.CalculatedCadence = cadence;
       }
     }

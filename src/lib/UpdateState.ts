@@ -1,45 +1,45 @@
-import { Page } from "../ant";
-import { BicyclePowerScanner } from "../sensors/BicyclePowerScanner";
-import { BicyclePowerScanState } from "../sensors/BicyclePowerScanState";
-import { BicyclePowerSensor } from "../sensors/BicyclePowerSensor";
-import { BicyclePowerSensorState } from "../sensors/BicyclePowerSensorState";
-import { CadenceScanner } from "../sensors/CadenceScanner";
-import { CadenceScanState } from "../sensors/CadenceScanState";
-import { CadenceSensor } from "../sensors/CadenceSensor";
-import { CadenceSensorState } from "../sensors/CadenceSensorState";
-import { EnvironmentScanner } from "../sensors/EnvironmentScanner";
-import { EnvironmentScanState } from "../sensors/EnvironmentScanState";
-import { EnvironmentSensor } from "../sensors/EnvironmentSensor";
-import { EnvironmentSensorState } from "../sensors/EnvironmentSensorState";
-import { FitnessEquipmentScanner } from "../sensors/FitnessEquipmentScanner";
-import { FitnessEquipmentScanState } from "../sensors/FitnessEquipmentScanState";
-import { FitnessEquipmentSensor } from "../sensors/FitnessEquipmentSensor";
-import { FitnessEquipmentSensorState } from "../sensors/FitnessEquipmentSensorState";
-import { HeartRateScanner } from "../sensors/HeartRateScanner";
-import { HeartRateScanState } from "../sensors/HeartRateScanState";
-import { HeartRateSensor } from "../sensors/HeartRateSensor";
-import { HeartRateSensorState } from "../sensors/HeartRateSensorState";
-import { MuscleOxygenScanner } from "../sensors/MuscleOxygenScanner";
-import { MuscleOxygenScanState } from "../sensors/MuscleOxygenScanState";
-import { MuscleOxygenSensor } from "../sensors/MuscleOxygenSensor";
-import { MuscleOxygenSensorState } from "../sensors/MuscleOxygenSensorState";
-import { SpeedCadenceScanner } from "../sensors/SpeedCadenceScanner";
-import { SpeedCadenceScanState } from "../sensors/SpeedCadenceScanState";
-import { SpeedCadenceSensor } from "../sensors/SpeedCadenceSensor";
-import { SpeedCadenceSensorState } from "../sensors/SpeedCadenceSensorState";
-import { SpeedScanner } from "../sensors/SpeedScanner";
-import { SpeedScanState } from "../sensors/SpeedScanState";
-import { SpeedSensor } from "../sensors/SpeedSensor";
-import { SpeedSensorState } from "../sensors/SpeedSensorState";
-import { StrideSpeedDistanceScanner } from "../sensors/StrideSpeedDistanceScanner";
-import { StrideSpeedDistanceScanState } from "../sensors/StrideSpeedDistanceScanState";
-import { StrideSpeedDistanceSensor } from "../sensors/StrideSpeedDistanceSensor";
-import { StrideSpeedDistanceSensorState } from "../sensors/StrideSpeedDistanceSensorState";
+import type { Page } from "../ant";
+import type { BicyclePowerScanState } from "../sensors/BicyclePowerScanState";
+import type { BicyclePowerScanner } from "../sensors/BicyclePowerScanner";
+import type { BicyclePowerSensor } from "../sensors/BicyclePowerSensor";
+import type { BicyclePowerSensorState } from "../sensors/BicyclePowerSensorState";
+import type { CadenceScanState } from "../sensors/CadenceScanState";
+import type { CadenceScanner } from "../sensors/CadenceScanner";
+import type { CadenceSensor } from "../sensors/CadenceSensor";
+import type { CadenceSensorState } from "../sensors/CadenceSensorState";
+import type { EnvironmentScanState } from "../sensors/EnvironmentScanState";
+import type { EnvironmentScanner } from "../sensors/EnvironmentScanner";
+import type { EnvironmentSensor } from "../sensors/EnvironmentSensor";
+import type { EnvironmentSensorState } from "../sensors/EnvironmentSensorState";
+import type { FitnessEquipmentScanState } from "../sensors/FitnessEquipmentScanState";
+import type { FitnessEquipmentScanner } from "../sensors/FitnessEquipmentScanner";
+import type { FitnessEquipmentSensor } from "../sensors/FitnessEquipmentSensor";
+import type { FitnessEquipmentSensorState } from "../sensors/FitnessEquipmentSensorState";
+import type { HeartRateScanState } from "../sensors/HeartRateScanState";
+import type { HeartRateScanner } from "../sensors/HeartRateScanner";
+import type { HeartRateSensor } from "../sensors/HeartRateSensor";
+import type { HeartRateSensorState } from "../sensors/HeartRateSensorState";
+import type { MuscleOxygenScanState } from "../sensors/MuscleOxygenScanState";
+import type { MuscleOxygenScanner } from "../sensors/MuscleOxygenScanner";
+import type { MuscleOxygenSensor } from "../sensors/MuscleOxygenSensor";
+import type { MuscleOxygenSensorState } from "../sensors/MuscleOxygenSensorState";
+import type { SpeedCadenceScanState } from "../sensors/SpeedCadenceScanState";
+import type { SpeedCadenceScanner } from "../sensors/SpeedCadenceScanner";
+import type { SpeedCadenceSensor } from "../sensors/SpeedCadenceSensor";
+import type { SpeedCadenceSensorState } from "../sensors/SpeedCadenceSensorState";
+import type { SpeedScanState } from "../sensors/SpeedScanState";
+import type { SpeedScanner } from "../sensors/SpeedScanner";
+import type { SpeedSensor } from "../sensors/SpeedSensor";
+import type { SpeedSensorState } from "../sensors/SpeedSensorState";
+import type { StrideSpeedDistanceScanState } from "../sensors/StrideSpeedDistanceScanState";
+import type { StrideSpeedDistanceScanner } from "../sensors/StrideSpeedDistanceScanner";
+import type { StrideSpeedDistanceSensor } from "../sensors/StrideSpeedDistanceSensor";
+import type { StrideSpeedDistanceSensorState } from "../sensors/StrideSpeedDistanceSensorState";
 
 export function updateBicyclePowerSensorState(
   sensor: BicyclePowerSensor | BicyclePowerScanner,
   state: BicyclePowerSensorState | BicyclePowerScanState,
-  data: DataView
+  data: DataView,
 ) {
   sensor.emit("powerData", state.updateState(data));
 }
@@ -47,7 +47,7 @@ export function updateBicyclePowerSensorState(
 export function updateCadenceSensorState(
   sensor: CadenceSensor | CadenceScanner,
   state: CadenceSensorState | CadenceScanState,
-  data: DataView
+  data: DataView,
 ) {
   sensor.emit("cadenceData", state.updateState(data));
 }
@@ -55,7 +55,7 @@ export function updateCadenceSensorState(
 export function updateEnvironmentSensorState(
   sensor: EnvironmentSensor | EnvironmentScanner,
   state: EnvironmentSensorState | EnvironmentScanState,
-  data: DataView
+  data: DataView,
 ) {
   const updatedState = state.updateState(data);
   sensor.emit("envdata", updatedState);
@@ -65,13 +65,13 @@ export function updateEnvironmentSensorState(
 export function updateFitnessEquipmentSensorState(
   sensor: FitnessEquipmentSensor | FitnessEquipmentScanner,
   state: FitnessEquipmentSensorState | FitnessEquipmentScanState,
-  data: DataView
+  data: DataView,
 ) {
   sensor.emit("fitnessData", state.updateState(data));
 }
 
 export function resetFitnessEquipmentSensorState(
-  state: FitnessEquipmentSensorState | FitnessEquipmentScanState
+  state: FitnessEquipmentSensorState | FitnessEquipmentScanState,
 ) {
   state.resetState();
 }
@@ -80,7 +80,7 @@ export function updateHeartRateSensorState(
   sensor: HeartRateSensor | HeartRateScanner,
   state: HeartRateSensorState | HeartRateScanState,
   data: DataView,
-  page: Page
+  page: Page,
 ) {
   const updatedState = state.updateState(data, page);
   sensor.emit("hbdata", updatedState);
@@ -90,7 +90,7 @@ export function updateHeartRateSensorState(
 export function updateMuscleOxygenSensorState(
   sensor: MuscleOxygenSensor | MuscleOxygenScanner,
   state: MuscleOxygenSensorState | MuscleOxygenScanState,
-  data: DataView
+  data: DataView,
 ) {
   const updatedState = state.updateState(data);
   if (updatedState) {
@@ -101,11 +101,11 @@ export function updateMuscleOxygenSensorState(
 export function updateSpeedCadenceSensorState(
   sensor: SpeedCadenceSensor | SpeedCadenceScanner,
   state: SpeedCadenceSensorState | SpeedCadenceScanState,
-  data: DataView
+  data: DataView,
 ) {
   const { updatedState, resultType } = state.updateState(
     data,
-    sensor.wheelCircumference
+    sensor.wheelCircumference,
   );
   switch (resultType) {
     case "both":
@@ -126,7 +126,7 @@ export function updateSpeedCadenceSensorState(
 export function updateSpeedSensorState(
   sensor: SpeedSensor | SpeedScanner,
   state: SpeedSensorState | SpeedScanState,
-  data: DataView
+  data: DataView,
 ) {
   const updatedState = state.updateState(data, sensor.wheelCircumference);
   if (updatedState) {
@@ -137,7 +137,7 @@ export function updateSpeedSensorState(
 export function updateStrideSpeedDistanceSensorState(
   sensor: StrideSpeedDistanceSensor | StrideSpeedDistanceScanner,
   state: StrideSpeedDistanceSensorState | StrideSpeedDistanceScanState,
-  data: DataView
+  data: DataView,
 ) {
   const updatedState = state.updateState(data);
   sensor.emit("ssddata", updatedState);

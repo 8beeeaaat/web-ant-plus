@@ -24,7 +24,7 @@ export class SpeedCadenceSensor extends AntPlusSensor {
       deviceType: SpeedCadenceSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8086
+      period: 8086,
     });
     this.state = new SpeedCadenceSensorState(deviceID);
   }
