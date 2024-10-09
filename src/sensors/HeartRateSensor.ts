@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/heart-rate-monitor/
  */
 
-import { Page, PageState } from "../ant";
+import { type Page, PageState } from "../ant";
 import { updateHeartRateSensorState } from "../lib/UpdateState";
 import { AntPlusSensor } from "./AntPlusSensor";
 import { HeartRateSensorState } from "./HeartRateSensorState";
@@ -19,7 +19,7 @@ export class HeartRateSensor extends AntPlusSensor {
       deviceType: HeartRateSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8070
+      period: 8070,
     });
     this.state = new HeartRateSensorState(deviceID);
   }
@@ -28,7 +28,7 @@ export class HeartRateSensor extends AntPlusSensor {
 
   private page: Page = {
     oldPage: -1,
-    pageState: PageState.INIT_PAGE
+    pageState: PageState.INIT_PAGE,
   };
 
   protected updateState(deviceId: number, data: DataView) {

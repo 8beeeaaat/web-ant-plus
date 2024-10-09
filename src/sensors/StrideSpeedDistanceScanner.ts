@@ -24,7 +24,7 @@ export class StrideSpeedDistanceScanner extends AntPlusScanner {
   protected updateRssiAndThreshold(
     deviceId: number,
     rssi: number | undefined,
-    threshold: number | undefined
+    threshold: number | undefined,
   ) {
     this.states[deviceId].Rssi = rssi;
     this.states[deviceId].Threshold = threshold;

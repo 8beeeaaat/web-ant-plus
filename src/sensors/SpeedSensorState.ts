@@ -42,7 +42,7 @@ export class SpeedSensorState {
 
   updateState(
     data: DataView,
-    wheelCircumference: number
+    wheelCircumference: number,
   ): SpeedSensorState | undefined {
     const TOGGLE_MASK = 0x80;
 
@@ -116,11 +116,11 @@ export class SpeedSensorState {
 
     let speedEventTime = data.getUint16(
       Messages.BUFFER_INDEX_MSG_DATA + 4,
-      true
+      true,
     );
     let speedRevolutionCount = data.getUint16(
       Messages.BUFFER_INDEX_MSG_DATA + 6,
-      true
+      true,
     );
 
     if (speedEventTime !== oldSpeedTime) {
@@ -143,7 +143,7 @@ export class SpeedSensorState {
 
       // speed in m/sec
       const speed = (distance * 1024) / (speedEventTime - (oldSpeedTime || 0));
-      if (!isNaN(speed)) {
+      if (!Number.isNaN(speed)) {
         this.CalculatedSpeed = speed;
         this.ReceivedAt = Date.now();
         return this;

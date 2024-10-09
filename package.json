@@ -1,6 +1,6 @@
 {
   "name": "web-ant-plus",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A package for ANT+ on Web browsers.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,8 +13,10 @@
   ],
   "scripts": {
     "build": "rimraf ./dist && tsc",
-    "lint": "prettier --write ./ && eslint --fix",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "check": "biome check ./",
+    "format": "biome check --fix ./",
+    "lint": "biome lint ./",
+    "test": "exit 0",
     "dev": "vite ./example",
     "preview": "vite preview  ./example"
   },
@@ -38,22 +40,10 @@
     "example"
   ],
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
+    "@biomejs/biome": "1.9.3",
     "@types/w3c-web-usb": "^1.0.10",
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.57.0",
-    "eslint-config-airbnb": "^19.0.4",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.2",
-    "vite": "^5.1.6"
-  },
-  "dependencies": {
-    "@js-temporal/polyfill": "^0.4.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
   }
 }

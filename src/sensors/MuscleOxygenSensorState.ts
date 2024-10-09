@@ -62,7 +62,7 @@ export class MuscleOxygenSensorState {
         const notifications = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2);
         const capabilities = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 3,
-          true
+          true,
         );
         const total =
           data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 4, true) & 0xfff;
@@ -99,7 +99,7 @@ export class MuscleOxygenSensorState {
             this.MeasurementInterval = 2;
             break;
           default:
-            delete this.MeasurementInterval;
+            this.MeasurementInterval = undefined;
         }
 
         switch (total) {
@@ -142,7 +142,7 @@ export class MuscleOxygenSensorState {
         this.ManId = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 4, true);
         this.ModelNum = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 6,
-          true
+          true,
         );
         break;
       }
@@ -169,11 +169,11 @@ export class MuscleOxygenSensorState {
           data.getUint32(Messages.BUFFER_INDEX_MSG_DATA + 3, true) & 0xffffff;
         const batteryFrac = data.getInt32(
           Messages.BUFFER_INDEX_MSG_DATA + 6,
-          true
+          true,
         );
         const batteryStatus = data.getInt32(
           Messages.BUFFER_INDEX_MSG_DATA + 7,
-          true
+          true,
         );
 
         this.OperatingTime =

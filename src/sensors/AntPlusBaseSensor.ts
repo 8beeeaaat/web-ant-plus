@@ -1,4 +1,4 @@
-import { AttachProps, BaseSensor } from "./BaseSensor";
+import { type AttachProps, BaseSensor } from "./BaseSensor";
 
 export abstract class AntPlusBaseSensor extends BaseSensor {
   protected scan(type: string) {
@@ -8,7 +8,7 @@ export abstract class AntPlusBaseSensor extends BaseSensor {
   protected attach(props: AttachProps) {
     return super.attach({
       ...props,
-      frequency: 57
+      frequency: 57,
     });
   }
 }

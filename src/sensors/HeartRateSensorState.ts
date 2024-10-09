@@ -3,8 +3,8 @@
  * Spec sheet: https://www.thisisant.com/resources/heart-rate-monitor/
  */
 
-import { Page, PageState } from "../ant";
 import { Messages } from "../Messages";
+import { type Page, PageState } from "../ant";
 
 export class HeartRateSensorState {
   constructor(deviceId: number) {
@@ -68,7 +68,7 @@ export class HeartRateSensorState {
         case 1:
           // decode the cumulative operating time
           this.OperatingTime = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 1
+            Messages.BUFFER_INDEX_MSG_DATA + 1,
           );
           this.OperatingTime |=
             data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2) << 8;
@@ -95,33 +95,33 @@ export class HeartRateSensorState {
           // decode the previous heart beat measurement time
           this.PreviousBeat = data.getUint16(
             Messages.BUFFER_INDEX_MSG_DATA + 2,
-            true
+            true,
           );
           break;
         case 5:
           this.IntervalAverage = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 1
+            Messages.BUFFER_INDEX_MSG_DATA + 1,
           );
           this.IntervalMax = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2);
           this.SessionAverage = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 3
+            Messages.BUFFER_INDEX_MSG_DATA + 3,
           );
           break;
         case 6:
           this.SupportedFeatures = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 2
+            Messages.BUFFER_INDEX_MSG_DATA + 2,
           );
           this.EnabledFeatures = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 3
+            Messages.BUFFER_INDEX_MSG_DATA + 3,
           );
           break;
         case 7: {
           const batteryLevel = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 1
+            Messages.BUFFER_INDEX_MSG_DATA + 1,
           );
           const batteryFrac = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2);
           const batteryStatus = data.getUint8(
-            Messages.BUFFER_INDEX_MSG_DATA + 3
+            Messages.BUFFER_INDEX_MSG_DATA + 3,
           );
           if (batteryLevel !== 0xff) {
             this.BatteryLevel = batteryLevel;
@@ -157,7 +157,7 @@ export class HeartRateSensorState {
     }
     // decode the last four bytes of the HRM format, the first byte of this message is the channel number
     this.decodeDefaultHRM(
-      new DataView(data.buffer.slice(Messages.BUFFER_INDEX_MSG_DATA + 4))
+      new DataView(data.buffer.slice(Messages.BUFFER_INDEX_MSG_DATA + 4)),
     );
     page.oldPage = pageNum;
 

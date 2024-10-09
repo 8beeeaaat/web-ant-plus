@@ -18,7 +18,7 @@ export class StrideSpeedDistanceSensor extends AntPlusSensor {
       deviceType: StrideSpeedDistanceSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8134
+      period: 8134,
     });
     this.state = new StrideSpeedDistanceSensorState(deviceID);
   }

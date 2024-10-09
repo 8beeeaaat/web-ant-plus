@@ -3,9 +3,8 @@
  * Spec sheet: https://www.thisisant.com/resources/ant-device-profile-muscle-oxygen/
  */
 
-import { SendCallback } from "../ant";
+import type { SendCallback } from "../ant";
 import { updateMuscleOxygenSensorState } from "../lib/UpdateState";
-import { Messages } from "../Messages";
 import { AntPlusSensor } from "./AntPlusSensor";
 import { MuscleOxygenSensorState } from "./MuscleOxygenSensorState";
 
@@ -20,7 +19,7 @@ export class MuscleOxygenSensor extends AntPlusSensor {
       deviceType: MuscleOxygenSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8192
+      period: 8192,
     });
     this.state = new MuscleOxygenSensorState(deviceID);
   }
@@ -41,7 +40,7 @@ export class MuscleOxygenSensor extends AntPlusSensor {
     }
     const now = new Date();
     const utc = Math.round(
-      (now.getTime() - Date.UTC(1989, 11, 31, 0, 0, 0, 0)) / 1000
+      (now.getTime() - Date.UTC(1989, 11, 31, 0, 0, 0, 0)) / 1000,
     );
     const offset = -Math.round(now.getTimezoneOffset() / 15);
     const payload = [
@@ -52,9 +51,9 @@ export class MuscleOxygenSensor extends AntPlusSensor {
       (utc >> 0) & 0xff,
       (utc >> 8) & 0xff,
       (utc >> 16) & 0xff,
-      (utc >> 24) & 0xff
+      (utc >> 24) & 0xff,
     ];
-    const msg = Messages.acknowledgedData(this.channel, payload);
+    const msg = this.stick.messages.acknowledgedData(this.channel, payload);
     this.send(msg, cbk);
   }
 

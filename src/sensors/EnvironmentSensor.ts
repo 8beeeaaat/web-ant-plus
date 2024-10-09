@@ -30,7 +30,7 @@ import { EnvironmentSensorState } from "./EnvironmentSensorState";
 export class EnvironmentSensor extends AntPlusSensor {
   static deviceType = 25;
 
-  public async attachSensor(channel: any, deviceID: number) {
+  public async attachSensor(channel: number, deviceID: number) {
     await super.attach({
       channel,
       type: "receive",
@@ -38,7 +38,7 @@ export class EnvironmentSensor extends AntPlusSensor {
       deviceType: EnvironmentSensor.deviceType,
       transmissionType: 0,
       timeout: 255,
-      period: 8192
+      period: 8192,
     });
     this.state = new EnvironmentSensorState(deviceID);
   }

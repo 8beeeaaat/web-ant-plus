@@ -1,8 +1,8 @@
-import { SendCallback } from "../ant";
 import { Constants } from "../Constants";
-import { EventEmitter } from "../lib/EventEmitter";
 import { Messages } from "../Messages";
-import { USBDriver } from "../USBDriver";
+import type { USBDriver } from "../USBDriver";
+import type { SendCallback } from "../ant";
+import { EventEmitter } from "../lib/EventEmitter";
 
 export type AttachProps = {
   channel: number;
@@ -28,9 +28,10 @@ export abstract class BaseSensor extends EventEmitter {
 
   protected abstract updateState(deviceId: number, data: DataView): void;
 
-  constructor(private stick: USBDriver) {
+  constructor(public stick: USBDriver) {
     super();
-    stick.on("read", this.handleEventMessages.bind(this));
+    this.stick = stick;
+    this.stick.on("read", this.handleEventMessages.bind(this));
   }
 
   protected async scan(type: string, frequency: number) {
@@ -50,13 +51,13 @@ export abstract class BaseSensor extends EventEmitter {
           switch (status.code) {
             case Constants.EVENT_CHANNEL_CLOSED:
             case Constants.EVENT_RX_FAIL_GO_TO_SEARCH:
-              await this.write(Messages.unassignChannel(channel));
+              await this.write(this.stick.messages.unassignChannel(channel));
               return true;
             case Constants.EVENT_TRANSFER_TX_COMPLETED:
             case Constants.EVENT_TRANSFER_TX_FAILED:
             case Constants.EVENT_RX_FAIL:
             case Constants.INVALID_SCAN_TX_CHANNEL:
-              if (mc && mc.cbk) {
+              if (mc?.cbk) {
                 mc.cbk(status.code === Constants.EVENT_TRANSFER_TX_COMPLETED);
               }
               if (this.msgQueue.length) {
@@ -68,19 +69,21 @@ export abstract class BaseSensor extends EventEmitter {
           }
           break;
         case Constants.MESSAGE_CHANNEL_ASSIGN:
-          await this.write(Messages.setDevice(channel, 0, 0, 0));
+          await this.write(this.stick.messages.setDevice(channel, 0, 0, 0));
           return true;
         case Constants.MESSAGE_CHANNEL_ID:
-          await this.write(Messages.setFrequency(channel, frequency));
+          await this.write(
+            this.stick.messages.setFrequency(channel, frequency),
+          );
           return true;
         case Constants.MESSAGE_CHANNEL_FREQUENCY:
-          await this.write(Messages.setRxExt());
+          await this.write(this.stick.messages.setRxExt());
           return true;
         case Constants.MESSAGE_ENABLE_RX_EXT:
-          await this.write(Messages.libConfig(channel, 0xe0));
+          await this.write(this.stick.messages.libConfig(channel, 0xe0));
           return true;
         case Constants.MESSAGE_LIB_CONFIG:
-          await this.write(Messages.openRxScan());
+          await this.write(this.stick.messages.openRxScan());
           return true;
         case Constants.MESSAGE_CHANNEL_OPEN_RX_SCAN:
           queueMicrotask(() => this.emit("attached"));
@@ -115,7 +118,7 @@ export abstract class BaseSensor extends EventEmitter {
 
       this.statusCbk = onStatus;
 
-      await this.write(Messages.assignChannel(channel, type));
+      await this.write(this.stick.messages.assignChannel(channel, type));
     } else {
       throw "cannot attach";
     }
@@ -124,7 +127,7 @@ export abstract class BaseSensor extends EventEmitter {
   protected async attach(
     props: AttachProps & {
       frequency: number;
-    }
+    },
   ) {
     const {
       channel,
@@ -134,7 +137,7 @@ export abstract class BaseSensor extends EventEmitter {
       transmissionType,
       timeout,
       period,
-      frequency
+      frequency,
     } = props;
     if (this.channel !== undefined) {
       throw "already attached";
@@ -154,13 +157,13 @@ export abstract class BaseSensor extends EventEmitter {
           switch (status.code) {
             case Constants.EVENT_CHANNEL_CLOSED:
             case Constants.EVENT_RX_FAIL_GO_TO_SEARCH:
-              await this.write(Messages.unassignChannel(channel));
+              await this.write(this.stick.messages.unassignChannel(channel));
               return true;
             case Constants.EVENT_TRANSFER_TX_COMPLETED:
             case Constants.EVENT_TRANSFER_TX_FAILED:
             case Constants.EVENT_RX_FAIL:
             case Constants.INVALID_SCAN_TX_CHANNEL:
-              if (mc && mc.cbk) {
+              if (mc?.cbk) {
                 mc.cbk(status.code === Constants.EVENT_TRANSFER_TX_COMPLETED);
               }
               if (this.msgQueue.length) {
@@ -179,29 +182,36 @@ export abstract class BaseSensor extends EventEmitter {
             throw "transmissionType required";
           }
           await this.write(
-            Messages.setDevice(channel, deviceID, deviceType, transmissionType)
+            this.stick.messages.setDevice(
+              channel,
+              deviceID,
+              deviceType,
+              transmissionType,
+            ),
           );
           return true;
         case Constants.MESSAGE_CHANNEL_ID:
           if (timeout === undefined) {
             throw "timeout required";
           }
-          await this.write(Messages.searchChannel(channel, timeout));
+          await this.write(this.stick.messages.searchChannel(channel, timeout));
           return true;
         case Constants.MESSAGE_CHANNEL_SEARCH_TIMEOUT:
-          await this.write(Messages.setFrequency(channel, frequency));
+          await this.write(
+            this.stick.messages.setFrequency(channel, frequency),
+          );
           return true;
         case Constants.MESSAGE_CHANNEL_FREQUENCY:
           if (period === undefined) {
             throw "period required";
           }
-          await this.write(Messages.setPeriod(channel, period));
+          await this.write(this.stick.messages.setPeriod(channel, period));
           return true;
         case Constants.MESSAGE_CHANNEL_PERIOD:
-          await this.write(Messages.libConfig(channel, 0xe0));
+          await this.write(this.stick.messages.libConfig(channel, 0xe0));
           return true;
         case Constants.MESSAGE_LIB_CONFIG:
-          await this.write(Messages.openChannel(channel));
+          await this.write(this.stick.messages.openChannel(channel));
           return true;
         case Constants.MESSAGE_CHANNEL_OPEN:
           queueMicrotask(() => this.emit("attached"));
@@ -223,14 +233,14 @@ export abstract class BaseSensor extends EventEmitter {
 
     this.statusCbk = onStatus;
 
-    await this.write(Messages.assignChannel(channel, type));
+    await this.write(this.stick.messages.assignChannel(channel, type));
   }
 
   public async detach() {
     if (this.channel === undefined) {
       return;
     }
-    await this.write(Messages.closeChannel(this.channel));
+    await this.write(this.stick.messages.closeChannel(this.channel));
     if (!this.stick.detach(this)) {
       throw "error detaching";
     }
@@ -248,14 +258,14 @@ export abstract class BaseSensor extends EventEmitter {
       if (messageID === Constants.MESSAGE_CHANNEL_EVENT) {
         const status = {
           msg: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA),
-          code: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 1)
+          code: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 1),
         };
 
         const handled = this.statusCbk && (await this.statusCbk(status));
         if (!handled) {
           this.emit("eventData", {
             message: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA),
-            code: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 1)
+            code: data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 1),
           });
         }
       } else if (this.decodeDataCbk) {

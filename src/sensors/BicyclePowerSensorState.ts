@@ -52,7 +52,7 @@ export class BicyclePowerSensorState {
           if (calParam === 0x01) {
             this.offset = data.getUint16(
               Messages.BUFFER_INDEX_MSG_DATA + 6,
-              true
+              true,
             );
           }
         }
@@ -83,7 +83,7 @@ export class BicyclePowerSensorState {
         }
         this.AccumulatedPower = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 4,
-          true
+          true,
         );
         this.Power = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 6, true);
         break;
@@ -97,11 +97,11 @@ export class BicyclePowerSensorState {
         const slope = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 3, true);
         let timeStamp = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 5,
-          true
+          true,
         );
         let torqueTicksStamp = data.getUint16(
           Messages.BUFFER_INDEX_MSG_DATA + 7,
-          true
+          true,
         );
 
         if (timeStamp !== oldTimeStamp && eventCount !== oldEventCount) {

@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/heart-rate-monitor/
  */
 
-import { Page, PageState } from "../ant";
+import { type Page, PageState } from "../ant";
 import { updateHeartRateSensorState } from "../lib/UpdateState";
 import { AntPlusScanner } from "./AntPlusScanner";
 import { HeartRateScanState } from "./HeartRateScanState";
@@ -31,7 +31,7 @@ export class HeartRateScanner extends AntPlusScanner {
   protected updateRssiAndThreshold(
     deviceId: number,
     rssi: number | undefined,
-    threshold: number | undefined
+    threshold: number | undefined,
   ) {
     this.states[deviceId].Rssi = rssi;
     this.states[deviceId].Threshold = threshold;
@@ -42,7 +42,7 @@ export class HeartRateScanner extends AntPlusScanner {
       this,
       this.states[deviceId],
       data,
-      this.pages[deviceId]
+      this.pages[deviceId],
     );
   }
 }
