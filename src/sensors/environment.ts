@@ -38,11 +38,14 @@ export function decodeEnvironment<TState extends EnvironmentSensorState>(
     updates.eventCount = data.getUint8(
       Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
     );
+    const temperature = data.getInt16(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+      true,
+    );
     updates.temperature =
-      data.getUint16(
-        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
-        true,
-      ) / Constants.ENVIRONMENT_TEMPERATURE_SCALE;
+      temperature === Constants.ENVIRONMENT_TEMPERATURE_INVALID
+        ? undefined
+        : temperature / Constants.ENVIRONMENT_TEMPERATURE_SCALE;
   }
 
   updates.receivedAt = Date.now();

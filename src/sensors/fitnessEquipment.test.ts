@@ -101,6 +101,27 @@ describe("decodeFitnessEquipment", () => {
     expect(second.averagePower).toBe(250);
   });
 
+  it("accumulates trainer torque page values across their own rollovers", () => {
+    const state: FitnessEquipmentSensorState = {
+      deviceId: 12345,
+      eventCount0x1A: 250,
+      wheelTicks: 250,
+      wheelPeriod: 65000,
+      torque: 65000,
+    };
+
+    const next = decodeFitnessEquipment(
+      state,
+      buildMessage([0x1a, 2, 5, 0xe8, 0x03, 0xf4, 0x01, 0x30]),
+    );
+
+    expect(next.eventCount0x1A).toBe(2);
+    expect(next.wheelTicks).toBe(261); // 250 + (5 + 256 - 250)
+    expect(next.wheelPeriod).toBe(66536); // 65000 + (1000 + 65536 - 65000)
+    expect(next.torque).toBe(66036); // 65000 + (500 + 65536 - 65000)
+    expect(next.state).toBe("IN_USE");
+  });
+
   it("resets session values when the equipment reports READY", () => {
     const inUse = decodeFitnessEquipment(
       initialState,
@@ -230,8 +251,8 @@ describe("buildTargetPowerPayload", () => {
     ]);
   });
 
-  it("clamps to the 0-1000 W range", () => {
-    expect(buildTargetPowerPayload(2000).slice(6)).toEqual([0xa0, 0x0f]);
+  it("clamps to the 0-4000 W range", () => {
+    expect(buildTargetPowerPayload(5000).slice(6)).toEqual([0x80, 0x3e]);
     expect(buildTargetPowerPayload(-5).slice(6)).toEqual([0x00, 0x00]);
   });
 });

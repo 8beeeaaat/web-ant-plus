@@ -95,9 +95,13 @@ export function decodeCadence<TState extends CadenceSensorState>(
       const batteryStatus = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
       );
+      const batteryVoltageInteger =
+        batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK;
       updates.batteryVoltage =
-        (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
-        batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+        batteryVoltageInteger === Constants.BATTERY_VOLTAGE_INTEGER_INVALID
+          ? undefined
+          : batteryVoltageInteger +
+            batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
       const batteryFlags =
         (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
         Constants.BATTERY_STATUS_SHIFT;
@@ -186,7 +190,7 @@ export class CadenceSensor extends AntPlusSensor<CadenceSensorState> {
   static readonly deviceType = Constants.DEVICE_TYPE_CADENCE;
 
   protected readonly deviceType = CadenceSensor.deviceType;
-  protected readonly period = Constants.PERIOD_BICYCLE_SPEED_CADENCE;
+  protected readonly period = Constants.PERIOD_BICYCLE_CADENCE;
 
   protected createState(deviceId: number): CadenceSensorState {
     return { deviceId };

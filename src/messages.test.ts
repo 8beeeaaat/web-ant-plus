@@ -8,7 +8,7 @@ function toBytes(message: DataView): number[] {
 }
 
 // Wire format: [0xa4 sync, payload length, message id, ...payload, checksum].
-// The checksum is the XOR of all preceding bytes, each step taken % 0xff.
+// The checksum is the XOR of all preceding bytes.
 
 describe("getChecksum", () => {
   it("XORs all bytes", () => {
@@ -16,8 +16,8 @@ describe("getChecksum", () => {
     expect(messages.getChecksum([0xa4, 0x01, 0x4a, 0x00])).toBe(0xef);
   });
 
-  it("reduces an intermediate 0xff to 0 via the modulo", () => {
-    expect(messages.getChecksum([0xff])).toBe(0x00);
+  it("preserves a checksum value of 0xff", () => {
+    expect(messages.getChecksum([0xff])).toBe(0xff);
   });
 });
 

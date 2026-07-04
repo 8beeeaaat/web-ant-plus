@@ -100,9 +100,13 @@ export function decodeSpeed<TState extends SpeedSensorState>(
       const batteryStatus = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
       );
+      const batteryVoltageInteger =
+        batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK;
       updates.batteryVoltage =
-        (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
-        batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+        batteryVoltageInteger === Constants.BATTERY_VOLTAGE_INTEGER_INVALID
+          ? undefined
+          : batteryVoltageInteger +
+            batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
       const batteryFlags =
         (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
         Constants.BATTERY_STATUS_SHIFT;
@@ -195,7 +199,7 @@ export class SpeedSensor extends AntPlusSensor<SpeedSensorState> {
   static readonly deviceType = Constants.DEVICE_TYPE_SPEED;
 
   protected readonly deviceType = SpeedSensor.deviceType;
-  protected readonly period = Constants.PERIOD_BICYCLE_SPEED_CADENCE;
+  protected readonly period = Constants.PERIOD_BICYCLE_SPEED;
 
   wheelCircumference: number = Constants.DEFAULT_WHEEL_CIRCUMFERENCE; // default 70cm wheel
 

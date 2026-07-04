@@ -8,9 +8,8 @@ const WHEEL_CIRCUMFERENCE = 2.199;
 
 /**
  * Builds a raw broadcast message: [0xa4, len, msgType, channel, ...payload].
- * The payload starts at BUFFER_INDEX_MSG_DATA (4). Note the legacy
- * decoder reads the cadence event time as big-endian while the other
- * three fields are little-endian.
+ * The payload starts at BUFFER_INDEX_MSG_DATA (4). The combined BSC
+ * profile sends all four 16-bit fields as LSB then MSB.
  */
 function makeData(
   cadenceTime: number,
@@ -23,7 +22,7 @@ function makeData(
   view.setUint8(1, 8);
   view.setUint8(2, 0x4e);
   view.setUint8(3, 0);
-  view.setUint16(4, cadenceTime, false);
+  view.setUint16(4, cadenceTime, true);
   view.setUint16(6, cadenceCount, true);
   view.setUint16(8, speedTime, true);
   view.setUint16(10, speedCount, true);
@@ -210,11 +209,11 @@ describe("decodeSpeedCadence", () => {
     expect(next).toBeUndefined();
   });
 
-  it("reads the cadence event time as big-endian", () => {
+  it("reads the cadence event time as little-endian", () => {
     const view = makeData(0, 1, 2048, 4);
-    // Bytes [0x04, 0x00] at the payload start = 0x0400 big-endian.
-    view.setUint8(4, 0x04);
-    view.setUint8(5, 0x00);
+    // Bytes [0x00, 0x04] at the payload start = 0x0400 little-endian.
+    view.setUint8(4, 0x00);
+    view.setUint8(5, 0x04);
 
     const state: SpeedCadenceSensorState = { deviceId: 1 };
     const next = decodeSpeedCadence(state, view, WHEEL_CIRCUMFERENCE);

@@ -136,7 +136,8 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
           updates.totalHemoglobinConcentration = "Invalid";
           break;
         default:
-          updates.totalHemoglobinConcentration = total;
+          updates.totalHemoglobinConcentration =
+            total / Constants.MUSCLE_OXYGEN_TOTAL_SCALE;
       }
 
       switch (previous) {
@@ -147,7 +148,8 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
           updates.previousSaturatedHemoglobinPercentage = "Invalid";
           break;
         default:
-          updates.previousSaturatedHemoglobinPercentage = previous;
+          updates.previousSaturatedHemoglobinPercentage =
+            previous / Constants.MUSCLE_OXYGEN_PERCENTAGE_SCALE;
       }
 
       switch (current) {
@@ -158,7 +160,8 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
           updates.currentSaturatedHemoglobinPercentage = "Invalid";
           break;
         default:
-          updates.currentSaturatedHemoglobinPercentage = current;
+          updates.currentSaturatedHemoglobinPercentage =
+            current / Constants.MUSCLE_OXYGEN_PERCENTAGE_SCALE;
       }
 
       break;
@@ -184,7 +187,7 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
       const swRevMain = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
       );
-      const serial = data.getInt32(
+      const serial = data.getUint32(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
         true,
       );
@@ -210,13 +213,11 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
           Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
           true,
         ) & Constants.MUSCLE_OXYGEN_OPERATING_TIME_MASK;
-      const batteryFrac = data.getInt32(
+      const batteryFrac = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
-        true,
       );
-      const batteryStatus = data.getInt32(
+      const batteryStatus = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
-        true,
       );
 
       updates.operatingTime =
@@ -225,9 +226,13 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
         Constants.MUSCLE_OXYGEN_OPERATING_TIME_2S_FLAG
           ? Constants.MUSCLE_OXYGEN_OPERATING_TIME_2S_SCALE
           : Constants.MUSCLE_OXYGEN_OPERATING_TIME_16S_SCALE);
+      const batteryVoltageInteger =
+        batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK;
       updates.batteryVoltage =
-        (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
-        batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+        batteryVoltageInteger === Constants.BATTERY_VOLTAGE_INTEGER_INVALID
+          ? undefined
+          : batteryVoltageInteger +
+            batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
       const batteryFlags =
         (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
         Constants.BATTERY_STATUS_SHIFT;

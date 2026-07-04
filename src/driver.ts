@@ -267,10 +267,25 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
         this.#leftover = new DataView(data.buffer.slice(beginBlock));
         break;
       }
-      void this.#handleMessage(
-        new DataView(data.buffer.slice(beginBlock, endBlock)),
-      );
+      const message = new DataView(data.buffer.slice(beginBlock, endBlock));
+      this.#validateMessage(message);
+      void this.#handleMessage(message);
       beginBlock = endBlock;
+    }
+  }
+
+  #validateMessage(data: DataView): void {
+    if (
+      data.getUint8(Constants.DEFAULT_CHANNEL) !== Constants.MESSAGE_TX_SYNC
+    ) {
+      throw new ProtocolError("SYNC missing");
+    }
+
+    const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    const expected = messages.getChecksum(bytes.subarray(0, bytes.length - 1));
+    const actual = bytes[bytes.length - 1];
+    if (actual !== expected) {
+      throw new ProtocolError("checksum mismatch");
     }
   }
 

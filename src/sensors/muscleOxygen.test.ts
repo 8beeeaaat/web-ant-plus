@@ -31,9 +31,9 @@ describe("decodeMuscleOxygen", () => {
       utcTimeRequired: true,
       supportANTFS: true,
       measurementInterval: 1,
-      totalHemoglobinConcentration: 0x234,
-      previousSaturatedHemoglobinPercentage: 0x301,
-      currentSaturatedHemoglobinPercentage: 0x3c,
+      totalHemoglobinConcentration: 5.64,
+      previousSaturatedHemoglobinPercentage: 76.9,
+      currentSaturatedHemoglobinPercentage: 6,
     });
     expect(state?.receivedAt).toBeTypeOf("number");
   });
@@ -103,19 +103,15 @@ describe("decodeMuscleOxygen", () => {
   });
 
   it("decodes battery status (page 0x52)", () => {
-    // The legacy decoder reads batteryFrac/batteryStatus as overlapping
-    // 32 bit values past the battery byte; pad the message accordingly.
     // batteryStatus byte 0xa3: coarse voltage 3, flags 2 (Good), time
     // resolution bit set (2 second units).
-    const data = makeMessage([
-      0x52, 0xff, 0x05, 0x10, 0x00, 0x00, 0x00, 0xa3, 0x00, 0x00, 0x00,
-    ]);
+    const data = makeMessage([0x52, 0xff, 0x05, 0x10, 0x00, 0x00, 0x8b, 0xa3]);
     const state = decodeMuscleOxygen(initialState, data);
 
     expect(state).toMatchObject({
       batteryId: 5,
       operatingTime: 0x10 * 2,
-      batteryVoltage: 3 + 0xa300 / 256,
+      batteryVoltage: 3 + 0x8b / 256,
       batteryStatus: "Good",
     });
   });
@@ -123,9 +119,7 @@ describe("decodeMuscleOxygen", () => {
   it("marks unknown battery flags invalid (page 0x52)", () => {
     // batteryStatus byte 0x03: flags 0 -> Invalid, voltage cleared,
     // 16 second operating time units.
-    const data = makeMessage([
-      0x52, 0xff, 0x05, 0x10, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-    ]);
+    const data = makeMessage([0x52, 0xff, 0x05, 0x10, 0x00, 0x00, 0x00, 0x03]);
     const state = decodeMuscleOxygen(initialState, data);
 
     expect(state).toMatchObject({

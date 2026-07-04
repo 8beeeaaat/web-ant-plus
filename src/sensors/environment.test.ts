@@ -34,15 +34,21 @@ describe("decodeEnvironment", () => {
     expect(next.deviceId).toBe(1234);
   });
 
-  it("decodes a raw value with the sign bit set as unsigned (legacy behavior)", () => {
-    // Raw bytes 0x30 0xf8 (little-endian) = 0xf830 = 63536. The legacy
-    // decoder reads this with getUint16, so it yields 635.36 rather than
-    // interpreting it as the signed value -2000 (-20.00 degrees C).
+  it("decodes a negative signed temperature", () => {
+    // Raw bytes 0x30 0xf8 (little-endian) = -2000 -> -20.00 degrees C.
     const data = buildMessage([1, 0, 7, 0, 0, 0, 0x30, 0xf8]);
 
     const next = decodeEnvironment(initialState, data);
 
-    expect(next.temperature).toBe(635.36);
+    expect(next.temperature).toBe(-20);
+  });
+
+  it("marks the invalid temperature value as undefined", () => {
+    const data = buildMessage([1, 0, 7, 0, 0, 0, 0x00, 0x80]);
+
+    const next = decodeEnvironment(initialState, data);
+
+    expect(next.temperature).toBeUndefined();
   });
 
   it("decodes a zero temperature", () => {

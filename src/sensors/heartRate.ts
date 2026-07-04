@@ -153,9 +153,13 @@ export function decodeHeartRate<TState extends HeartRateSensorState>(
         if (batteryLevel !== Constants.INVALID_BYTE) {
           updates.batteryLevel = batteryLevel;
         }
+        const batteryVoltageInteger =
+          batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK;
         updates.batteryVoltage =
-          (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
-          batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+          batteryVoltageInteger === Constants.BATTERY_VOLTAGE_INTEGER_INVALID
+            ? undefined
+            : batteryVoltageInteger +
+              batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
         const batteryFlags =
           (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
           Constants.BATTERY_STATUS_SHIFT;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { type ChannelParticipant, USBDriver } from "./driver.js";
+import { ProtocolError } from "./errors.js";
 import * as messages from "./messages.js";
 import {
   FakeUSB,
@@ -141,5 +142,20 @@ describe("read loop", () => {
     expect(Array.from(new Uint8Array(data.buffer))).toEqual([
       0xa4, 0x09, 0x4e, 0x00, 1, 2, 3, 4, 5, 6, 7, 8, 0xeb,
     ]);
+  });
+
+  it("rejects a frame with an invalid checksum", async () => {
+    const { device, driver } = await openDriver();
+    const error = new Promise<unknown>((resolve) => {
+      driver.once("error", resolve);
+    });
+    const frame = new Uint8Array(
+      messages.broadcastData(0, [1, 2, 3, 4, 5, 6, 7, 8]).buffer,
+    );
+    frame[frame.length - 1] = (frame[frame.length - 1] ?? 0) ^ 0xff;
+
+    device.queueResponse(new DataView(frame.buffer));
+
+    await expect(error).resolves.toBeInstanceOf(ProtocolError);
   });
 });

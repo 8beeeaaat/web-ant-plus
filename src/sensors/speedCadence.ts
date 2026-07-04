@@ -46,7 +46,7 @@ export function decodeSpeedCadence<TState extends SpeedCadenceSensorState>(
   const oldSpeedTime = state.speedEventTime;
   const oldSpeedCount = state.cumulativeSpeedRevolutionCount;
 
-  let cadenceTime = data.getUint16(Constants.BUFFER_INDEX_MSG_DATA, false);
+  let cadenceTime = data.getUint16(Constants.BUFFER_INDEX_MSG_DATA, true);
   let cadenceCount = data.getUint16(
     Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
     true,

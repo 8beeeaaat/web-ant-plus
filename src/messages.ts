@@ -26,11 +26,12 @@ const CHANNEL_TYPE_CODES: Record<ChannelType, number> = {
   transmit_shared: Constants.CHANNEL_TYPE_SHARED_TRANSMIT,
 };
 
-export function getChecksum(message: readonly number[]): number {
-  return message.reduce(
-    (acc, byte) => (acc ^ byte) % Constants.MESSAGE_CHECKSUM_MODULO,
-    Constants.DEFAULT_CHANNEL,
-  );
+export function getChecksum(message: ArrayLike<number>): number {
+  let checksum = Constants.DEFAULT_CHANNEL;
+  for (let i = Constants.DEFAULT_CHANNEL; i < message.length; i++) {
+    checksum ^= message[i] ?? Constants.DEFAULT_CHANNEL;
+  }
+  return checksum;
 }
 
 export function buildMessage(

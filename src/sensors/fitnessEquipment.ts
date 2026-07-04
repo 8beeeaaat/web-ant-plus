@@ -746,13 +746,13 @@ export function decodeFitnessEquipment<
         (state.wheelTicks || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
       if (wheelTicks !== oldWheelTicks) {
         if (oldWheelTicks > wheelTicks) {
-          wheelTicks += Constants.UINT16_ROLLOVER;
+          wheelTicks += Constants.FITNESS_DISTANCE_ROLLOVER;
         }
       }
       updates.wheelTicks = (state.wheelTicks || 0) + wheelTicks - oldWheelTicks;
 
       const oldWheelPeriod =
-        (state.wheelPeriod || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
+        (state.wheelPeriod || 0) % Constants.UINT16_ROLLOVER;
       if (accWheelPeriod !== oldWheelPeriod) {
         if (oldWheelPeriod > accWheelPeriod) {
           accWheelPeriod += Constants.UINT16_ROLLOVER;
@@ -761,8 +761,7 @@ export function decodeFitnessEquipment<
       updates.wheelPeriod =
         (state.wheelPeriod || 0) + accWheelPeriod - oldWheelPeriod;
 
-      const oldTorque =
-        (state.torque || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
+      const oldTorque = (state.torque || 0) % Constants.UINT16_ROLLOVER;
       if (accTorque !== oldTorque) {
         if (oldTorque > accTorque) {
           accTorque += Constants.UINT16_ROLLOVER;
@@ -804,7 +803,7 @@ export function decodeFitnessEquipment<
       const swRevMain = data.getUint8(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
       );
-      const serial = data.getInt32(
+      const serial = data.getUint32(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
         true,
       );

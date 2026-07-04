@@ -58,7 +58,7 @@ export function decodeBicyclePower<TState extends BicyclePowerSensorState>(
         if (calParam === Constants.BICYCLE_POWER_CAL_PARAM_AUTO_ZERO_SUPPORT) {
           updates.offset = data.getUint16(
             Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
-            true,
+            false,
           );
         }
       }
@@ -111,16 +111,16 @@ export function decodeBicyclePower<TState extends BicyclePowerSensorState>(
         Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
       );
       const slope = data.getUint16(
-        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
-        true,
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        false,
       );
       let timeStamp = data.getUint16(
-        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
-        true,
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        false,
       );
       let torqueTicksStamp = data.getUint16(
-        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
-        true,
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        false,
       );
 
       if (timeStamp !== oldTimeStamp && eventCount !== oldEventCount) {
