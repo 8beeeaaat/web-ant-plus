@@ -10,7 +10,7 @@ import {
  * (BUFFER_INDEX_MSG_DATA): [0xa4, len, msgType, channel, ...payload].
  */
 function makeMessage(payload: number[]): DataView {
-  const bytes = [0xa4, payload.length, 0x4e, 0x00, ...payload];
+  const bytes = [0xa4, payload.length + 1, 0x4e, 0x00, ...payload];
   return new DataView(Uint8Array.from(bytes).buffer);
 }
 
