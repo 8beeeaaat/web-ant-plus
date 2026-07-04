@@ -7,7 +7,7 @@ import { type CadenceSensorState, decodeCadence } from "./cadence.js";
  */
 function makeMessage(payload: number[]): DataView {
   return new DataView(
-    new Uint8Array([0xa4, payload.length, 0x4e, 0x00, ...payload]).buffer,
+    new Uint8Array([0xa4, payload.length + 1, 0x4e, 0x00, ...payload]).buffer,
   );
 }
 
