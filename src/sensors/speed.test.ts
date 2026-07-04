@@ -8,7 +8,7 @@ const WHEEL_CIRCUMFERENCE = 2.199;
  * so the 8 byte page payload starts at BUFFER_INDEX_MSG_DATA (4).
  */
 function buildData(payload: number[]): DataView {
-  const raw = [0xa4, payload.length, 0x4e, 0x00, ...payload];
+  const raw = [0xa4, payload.length + 1, 0x4e, 0x00, ...payload];
   return new DataView(new Uint8Array(raw).buffer);
 }
 
