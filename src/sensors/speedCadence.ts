@@ -140,7 +140,7 @@ export class SpeedCadenceSensor extends AntPlusSensor<SpeedCadenceSensorState> {
   protected readonly deviceType = SpeedCadenceSensor.deviceType;
   protected readonly period = Constants.PERIOD_BICYCLE_SPEED_CADENCE;
 
-  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
+  wheelCircumference: number = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
 
   protected createState(deviceId: number): SpeedCadenceSensorState {
     return { deviceId };
@@ -159,7 +159,7 @@ export class SpeedCadenceScanner extends AntPlusScanner<SpeedCadenceScanState> {
 
   protected readonly deviceType = SpeedCadenceScanner.deviceType;
 
-  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
+  wheelCircumference: number = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
 
   protected createState(deviceId: number): SpeedCadenceScanState {
     return { deviceId };
