@@ -166,6 +166,20 @@ describe("decodeCadence", () => {
     expect(next.batteryStatus).toBe("Invalid");
   });
 
+  it.each([
+    [0x11, "New"],
+    [0x22, "Good"],
+    [0x44, "Low"],
+    [0x55, "Critical"],
+  ] as const)("maps battery status byte %# to %s", (status, expected) => {
+    const next = decodeCadence(
+      initialState,
+      makePage(4, [0x00, 0x00, status], 512, 10),
+    );
+
+    expect(next.batteryStatus).toBe(expected);
+  });
+
   it("decodes page 5 motion flag", () => {
     const stopped = decodeCadence(
       initialState,

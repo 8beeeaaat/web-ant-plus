@@ -53,6 +53,38 @@ describe("decodeMuscleOxygen", () => {
     });
   });
 
+  it.each([
+    [0x02, 0.25],
+    [0x04, 0.5],
+    [0x08, 2],
+  ] as const)("maps measurement interval capability %#", (capability, interval) => {
+    const data = makeMessage([
+      0x01,
+      1,
+      0x00,
+      capability,
+      0x34,
+      0x12,
+      0x30,
+      0x0f,
+    ]);
+
+    expect(decodeMuscleOxygen(initialState, data)).toMatchObject({
+      measurementInterval: interval,
+    });
+  });
+
+  it("maps invalid total and the remaining percentage sentinels", () => {
+    // total = 0xfff, previous = 0x3fe, current = 0x3ff
+    const data = makeMessage([0x01, 1, 0x00, 0x00, 0xff, 0xef, 0xff, 0xff]);
+
+    expect(decodeMuscleOxygen(initialState, data)).toMatchObject({
+      totalHemoglobinConcentration: "Invalid",
+      previousSaturatedHemoglobinPercentage: "AmbientLightTooHigh",
+      currentSaturatedHemoglobinPercentage: "Invalid",
+    });
+  });
+
   it("returns undefined when the event count has not changed", () => {
     const data = makeMessage([0x01, 1, 0x01, 0x07, 0x34, 0x12, 0x30, 0x0f]);
     const first = decodeMuscleOxygen(initialState, data);
@@ -126,6 +158,28 @@ describe("decodeMuscleOxygen", () => {
       operatingTime: 0x10 * 16,
       batteryVoltage: undefined,
       batteryStatus: "Invalid",
+    });
+  });
+
+  it.each([
+    [0x11, "New"],
+    [0x33, "Ok"],
+    [0x44, "Low"],
+    [0x55, "Critical"],
+  ] as const)("maps battery flags %# to %s", (status, expected) => {
+    const data = makeMessage([
+      0x52,
+      0xff,
+      0x05,
+      0x10,
+      0x00,
+      0x00,
+      0x80,
+      status,
+    ]);
+
+    expect(decodeMuscleOxygen(initialState, data)).toMatchObject({
+      batteryStatus: expected,
     });
   });
 

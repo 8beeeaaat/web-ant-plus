@@ -186,6 +186,24 @@ describe("decodeSpeed", () => {
     expect(next?.batteryVoltage).toBeCloseTo(3.5, 10);
   });
 
+  it.each([
+    [0x11, "New"],
+    [0x22, "Good"],
+    [0x44, "Low"],
+    [0x55, "Critical"],
+    [0x06, "Invalid"],
+  ] as const)("maps battery status byte %# to %s", (status, expected) => {
+    const state: SpeedSensorState = { deviceId: 12345 };
+    const data = buildData(speedPayload(4, 0xff, 0x00, status, 1024, 2));
+
+    const next = decodeSpeed(state, data, WHEEL_CIRCUMFERENCE);
+
+    expect(next?.batteryStatus).toBe(expected);
+    if (expected === "Invalid") {
+      expect(next?.batteryVoltage).toBeUndefined();
+    }
+  });
+
   it("decodes stop indication from page 5", () => {
     const state: SpeedSensorState = { deviceId: 12345 };
     const data = buildData(speedPayload(5, 0x01, 0x00, 0x00, 1024, 2));

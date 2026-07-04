@@ -69,6 +69,152 @@ describe("decodeFitnessEquipment", () => {
     expect(state.state).toBe("OFF");
   });
 
+  it("decodes calibration values when present", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x01, 0xc0, 0, 100, 0x34, 0x12, 0x78, 0x56]),
+    );
+
+    expect(state.temperature).toBe(25);
+    expect(state.zeroOffset).toBe(0x1234);
+    expect(state.spinDownTime).toBe(0x5678);
+  });
+
+  it("ignores invalid calibration temperature and absent optional flags", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x01, 0x00, 0, 0xff, 0x34, 0x12, 0x78, 0x56]),
+    );
+
+    expect(state.temperature).toBeUndefined();
+    expect(state.zeroOffset).toBeUndefined();
+    expect(state.spinDownTime).toBeUndefined();
+  });
+
+  it.each([
+    [19, "Treadmill"],
+    [20, "Elliptical"],
+    [21, "Reserved"],
+    [22, "Rower"],
+    [23, "Climber"],
+    [24, "NordicSkier"],
+    [25, "Trainer/StationaryBike"],
+    [26, "General"],
+  ] as const)("maps equipment type %i to %s", (type, expected) => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x10, type, 0, 0, 0, 0, 0xff, 0x10]),
+    );
+
+    expect(state.equipmentType).toBe(expected);
+  });
+
+  it.each([
+    [0x31, "ANT+"],
+    [0x32, "EM"],
+    [0x30, undefined],
+  ] as const)("decodes heart rate source from flags %#", (flags, expected) => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x10, 25, 0, 0, 0, 0, 120, flags]),
+    );
+
+    expect(state.heartRateSource).toBe(expected);
+    expect(state.heartRate).toBe(expected === undefined ? undefined : 120);
+  });
+
+  it("decodes general settings and FINISHED state", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x11, 0, 0, 50, 0xd0, 0x07, 42, 0x40]),
+    );
+
+    expect(state.cycleLength).toBe(0.5);
+    expect(state.incline).toBe(20);
+    expect(state.resistance).toBe(42);
+    expect(state.state).toBe("FINISHED");
+  });
+
+  it("ignores invalid general settings values", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x11, 0, 0, 0xff, 0x11, 0x27, 0xff, 0x00]),
+    );
+
+    expect(state.cycleLength).toBeUndefined();
+    expect(state.incline).toBeUndefined();
+    expect(state.resistance).toBeUndefined();
+    expect(state.state).toBeUndefined();
+  });
+
+  it("decodes metabolic data with optional calories", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x12, 0, 0x34, 0x12, 0x2c, 0x01, 77, 0x31]),
+    );
+
+    expect(state.mets).toBe(46.6);
+    expect(state.caloricBurnRate).toBe(30);
+    expect(state.calories).toBe(77);
+    expect(state.state).toBe("IN_USE");
+  });
+
+  it("ignores invalid metabolic values and absent calories flag", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x12, 0, 0xff, 0xff, 0xff, 0xff, 77, 0x30]),
+    );
+
+    expect(state.mets).toBeUndefined();
+    expect(state.caloricBurnRate).toBeUndefined();
+    expect(state.calories).toBeUndefined();
+  });
+
+  it("decodes treadmill distances and handles rollover", () => {
+    const state: FitnessEquipmentSensorState = {
+      deviceId: 12345,
+      ascendedDistance: 250,
+      descendedDistance: 250,
+    };
+    const next = decodeFitnessEquipment(
+      state,
+      buildMessage([0x13, 0, 0, 0, 88, 5, 6, 0x33]),
+    );
+
+    expect(next.cadence).toBe(88);
+    expect(next.descendedDistance).toBe(261);
+    expect(next.ascendedDistance).toBe(262);
+    expect(next.state).toBe("IN_USE");
+  });
+
+  it("decodes elliptical distance, strides and power", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x14, 0, 10, 20, 90, 0xfa, 0x00, 0x33]),
+    );
+
+    expect(state.ascendedDistance).toBe(10);
+    expect(state.strides).toBe(20);
+    expect(state.cadence).toBe(90);
+    expect(state.instantaneousPower).toBe(250);
+  });
+
+  it.each([
+    [0x16, "strokes"],
+    [0x17, "strides"],
+    [0x18, "strides"],
+  ] as const)("decodes page %# movement counters", (page, field) => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([page, 0, 0, 12, 70, 0xc8, 0x00, 0x31]),
+    );
+
+    expect(state[field]).toBe(12);
+    expect(state.cadence).toBe(70);
+    expect(state.instantaneousPower).toBe(200);
+    expect(state.state).toBe("IN_USE");
+  });
+
   it("decodes the trainer power page (0x19)", () => {
     // event 1, cadence 90, accPower 300, power 250 with trainer status
     // nibble 2, flags: target on target + IN_USE.
@@ -99,6 +245,21 @@ describe("decodeFitnessEquipment", () => {
     expect(second.eventCount0x19).toBe(3);
     expect(second.accumulatedPower).toBe(800);
     expect(second.averagePower).toBe(250);
+  });
+
+  it.each([
+    [0x31, "LowSpeed"],
+    [0x32, "HighSpeed"],
+    [0x33, undefined],
+  ] as const)("maps trainer target status from %#", (flags, expected) => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x19, 1, 0xff, 0x2c, 0x01, 0xff, 0x0f, flags]),
+    );
+
+    expect(state.cadence).toBeUndefined();
+    expect(state.instantaneousPower).toBeUndefined();
+    expect(state.targetStatus).toBe(expected);
   });
 
   it("accumulates trainer torque page values across their own rollovers", () => {
@@ -160,6 +321,47 @@ describe("decodeFitnessEquipment", () => {
       { id: 0x3039, type: 0x78, paired: true },
       { id: 0x303a, type: 0x79, paired: false },
     ]);
+  });
+
+  it("clears paired devices when total is zero", () => {
+    const state: FitnessEquipmentSensorState = {
+      deviceId: 12345,
+      pairedDevices: [{ id: 1, type: 2, paired: true }],
+    };
+
+    const next = decodeFitnessEquipment(
+      state,
+      buildMessage([0x56, 0, 0, 0, 0, 0, 0, 0]),
+    );
+
+    expect(next.pairedDevices).toEqual([]);
+  });
+
+  it("decodes common manufacturer and product pages", () => {
+    const manufacturer = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x50, 0, 0, 3, 0x34, 0x12, 0x78, 0x56]),
+    );
+    const product = decodeFitnessEquipment(
+      manufacturer,
+      buildMessage([0x51, 0, 2, 5, 0x78, 0x56, 0x34, 0x12]),
+    );
+
+    expect(product.hwVersion).toBe(3);
+    expect(product.manId).toBe(0x1234);
+    expect(product.modelNum).toBe(0x5678);
+    expect(product.swVersion).toBe(5.002);
+    expect(product.serialNumber).toBe(0x12345678);
+  });
+
+  it("keeps product fields optional when sentinels are used", () => {
+    const state = decodeFitnessEquipment(
+      initialState,
+      buildMessage([0x51, 0, 0xff, 5, 0xff, 0xff, 0xff, 0xff]),
+    );
+
+    expect(state.swVersion).toBe(5);
+    expect(state.serialNumber).toBeUndefined();
   });
 
   it("keeps existing values and stamps receivedAt on unknown pages", () => {
