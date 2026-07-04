@@ -9,7 +9,13 @@ import {
  * The decoder reads the 8-byte payload from BUFFER_INDEX_MSG_DATA (4).
  */
 function buildMessage(payload: readonly number[]): DataView {
-  const buffer = new Uint8Array([0xa4, payload.length, 0x4e, 0, ...payload]);
+  const buffer = new Uint8Array([
+    0xa4,
+    payload.length + 1,
+    0x4e,
+    0,
+    ...payload,
+  ]);
   return new DataView(buffer.buffer);
 }
 
