@@ -1,6 +1,6 @@
 /*
- * ANT+ profile: https://www.thisisant.com/developer/ant-plus/device-profiles/#528_tab
- * Spec sheet: https://www.thisisant.com/resources/environment/
+ * ANT+ Environment profile spec sheet:
+ * https://www.thisisant.com/resources/environment/
  */
 
 import { Constants } from "../constants.js";
