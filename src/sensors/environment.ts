@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/environment/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -32,11 +32,17 @@ export function decodeEnvironment<TState extends EnvironmentSensorState>(
   data: DataView,
 ): TState {
   const updates: Draft<EnvironmentSensorState> = {};
-  const page = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const page = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
 
-  if (page === 1) {
-    updates.eventCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-    updates.temperature = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true) / 100;
+  if (page === Constants.ENVIRONMENT_PAGE_DEFAULT) {
+    updates.eventCount = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+    );
+    updates.temperature =
+      data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        true,
+      ) / Constants.ENVIRONMENT_TEMPERATURE_SCALE;
   }
 
   updates.receivedAt = Date.now();
@@ -45,10 +51,10 @@ export function decodeEnvironment<TState extends EnvironmentSensorState>(
 }
 
 export class EnvironmentSensor extends AntPlusSensor<EnvironmentSensorState> {
-  static readonly deviceType = 25;
+  static readonly deviceType = Constants.DEVICE_TYPE_ENVIRONMENT;
 
   protected readonly deviceType = EnvironmentSensor.deviceType;
-  protected readonly period = 8192;
+  protected readonly period = Constants.PERIOD_ENVIRONMENT;
 
   protected createState(deviceId: number): EnvironmentSensorState {
     return { deviceId };
@@ -63,7 +69,7 @@ export class EnvironmentSensor extends AntPlusSensor<EnvironmentSensorState> {
 }
 
 export class EnvironmentScanner extends AntPlusScanner<EnvironmentScanState> {
-  static readonly deviceType = 25;
+  static readonly deviceType = Constants.DEVICE_TYPE_ENVIRONMENT;
 
   protected readonly deviceType = EnvironmentScanner.deviceType;
 

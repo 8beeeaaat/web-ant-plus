@@ -28,19 +28,27 @@ export type USBDriverEvents = {
 
 export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
   static readonly supportedDevices: readonly SupportedDevice[] = [
-    { vendor: 0x0fcf, product: 0x1008, name: "GarminStick2" },
-    { vendor: 0x0fcf, product: 0x1009, name: "GarminStick3" },
+    {
+      vendor: Constants.DYNASTREAM_USB_VENDOR_ID,
+      product: Constants.GARMIN_STICK_2_PRODUCT_ID,
+      name: "GarminStick2",
+    },
+    {
+      vendor: Constants.DYNASTREAM_USB_VENDOR_ID,
+      product: Constants.GARMIN_STICK_3_PRODUCT_ID,
+      name: "GarminStick3",
+    },
   ];
 
   #device: USBDevice;
   #inEndpoint: USBEndpoint | undefined;
   #outEndpoint: USBEndpoint | undefined;
   #leftover: DataView | undefined;
-  #usedChannels = 0;
+  #usedChannels: number = Constants.DEFAULT_CHANNEL;
   #attachedSensors: ChannelParticipant[] = [];
   #readCancellation = new CancellationToken();
 
-  maxChannels = 0;
+  maxChannels: number = Constants.DEFAULT_CHANNEL;
   canScan = false;
 
   private constructor(device: USBDevice) {
@@ -67,7 +75,9 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
    * If more than one ANT+ stick is paired, the first one is used.
    */
   static async fromPairedDevice(): Promise<USBDriver | undefined> {
-    const device = (await USBDriver.getPairedDevices())[0];
+    const device = (await USBDriver.getPairedDevices())[
+      Constants.DEFAULT_CHANNEL
+    ];
     return device === undefined ? undefined : new USBDriver(device);
   }
 
@@ -104,7 +114,8 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
    */
   async open(): Promise<void> {
     await this.#device.open();
-    const iface = this.#device.configuration?.interfaces[0];
+    const iface =
+      this.#device.configuration?.interfaces[Constants.USB_INTERFACE_NUMBER];
     if (iface === undefined) {
       throw new DeviceNotFoundError("No interface found");
     }
@@ -139,24 +150,24 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
 
   async reset(): Promise<void> {
     await this.detachAll();
-    this.maxChannels = 0;
-    this.#usedChannels = 0;
+    this.maxChannels = Constants.DEFAULT_CHANNEL;
+    this.#usedChannels = Constants.DEFAULT_CHANNEL;
     await this.write(messages.resetSystem());
   }
 
   isScanning(): boolean {
-    return this.#usedChannels === -1;
+    return this.#usedChannels === Constants.SCANNING_CHANNEL_SENTINEL;
   }
 
   attach(sensor: ChannelParticipant, forScan: boolean): boolean {
-    if (this.#usedChannels < 0) {
+    if (this.#usedChannels < Constants.DEFAULT_CHANNEL) {
       return false;
     }
     if (forScan) {
-      if (this.#usedChannels !== 0) {
+      if (this.#usedChannels !== Constants.DEFAULT_CHANNEL) {
         return false;
       }
-      this.#usedChannels = -1;
+      this.#usedChannels = Constants.SCANNING_CHANNEL_SENTINEL;
     } else {
       if (this.maxChannels <= this.#usedChannels) {
         return false;
@@ -169,15 +180,15 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
 
   detach(sensor: ChannelParticipant): boolean {
     const index = this.#attachedSensors.indexOf(sensor);
-    if (index < 0) {
+    if (index < Constants.DEFAULT_CHANNEL) {
       return false;
     }
-    if (this.#usedChannels < 0) {
-      this.#usedChannels = 0;
+    if (this.#usedChannels < Constants.DEFAULT_CHANNEL) {
+      this.#usedChannels = Constants.DEFAULT_CHANNEL;
     } else {
       --this.#usedChannels;
     }
-    this.#attachedSensors.splice(index, 1);
+    this.#attachedSensors.splice(index, Constants.DEFAULT_INT_BYTE_LENGTH);
     return true;
   }
 
@@ -210,12 +221,17 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
           const merged = new Uint8Array(
             this.#leftover.byteLength + data.byteLength,
           );
-          merged.set(new Uint8Array(this.#leftover.buffer), 0);
+          merged.set(
+            new Uint8Array(this.#leftover.buffer),
+            Constants.DEFAULT_CHANNEL,
+          );
           merged.set(new Uint8Array(data.buffer), this.#leftover.byteLength);
           data = new DataView(merged.buffer);
           this.#leftover = undefined;
         }
-        if (data.getUint8(0) !== Constants.MESSAGE_TX_SYNC) {
+        if (
+          data.getUint8(Constants.DEFAULT_CHANNEL) !== Constants.MESSAGE_TX_SYNC
+        ) {
           throw new ProtocolError("SYNC missing");
         }
         if (result.status === "ok") {
@@ -236,14 +252,17 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
 
   #splitAndDispatch(data: DataView): void {
     const length = data.byteLength;
-    let beginBlock = 0;
+    let beginBlock: number = Constants.DEFAULT_CHANNEL;
     while (beginBlock < length) {
-      if (beginBlock + 1 === length) {
+      if (beginBlock + Constants.DEFAULT_INT_BYTE_LENGTH === length) {
         this.#leftover = new DataView(data.buffer.slice(beginBlock));
         break;
       }
-      const blockLength = data.getUint8(beginBlock + 1);
-      const endBlock = beginBlock + blockLength + 4;
+      const blockLength = data.getUint8(
+        beginBlock + Constants.BUFFER_INDEX_MSG_LEN,
+      );
+      const endBlock =
+        beginBlock + blockLength + Constants.MESSAGE_FRAME_OVERHEAD_BYTES;
       if (endBlock > length) {
         this.#leftover = new DataView(data.buffer.slice(beginBlock));
         break;
@@ -259,15 +278,24 @@ export class USBDriver extends TypedEventEmitter<USBDriverEvents> {
     const messageId = data.getUint8(messages.BUFFER_INDEX_MSG_TYPE);
     if (messageId === Constants.MESSAGE_STARTUP) {
       await this.write(
-        messages.requestMessage(0, Constants.MESSAGE_CAPABILITIES),
+        messages.requestMessage(
+          Constants.DEFAULT_CHANNEL,
+          Constants.MESSAGE_CAPABILITIES,
+        ),
       );
     } else if (messageId === Constants.MESSAGE_CAPABILITIES) {
-      this.maxChannels = data.getUint8(3);
-      this.canScan = (data.getUint8(7) & 0x06) === 0x06;
+      this.maxChannels = data.getUint8(Constants.BUFFER_INDEX_CHANNEL_NUM);
+      this.canScan =
+        (data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        ) &
+          Constants.CAPABILITIES_SCAN_SUPPORT_MASK) ===
+        Constants.CAPABILITIES_SCAN_SUPPORT_MASK;
       await this.write(messages.setNetworkKey());
     } else if (
       messageId === Constants.MESSAGE_CHANNEL_EVENT &&
-      data.getUint8(4) === Constants.MESSAGE_NETWORK_KEY
+      data.getUint8(Constants.BUFFER_INDEX_MSG_DATA) ===
+        Constants.MESSAGE_NETWORK_KEY
     ) {
       this.emit("startup", data);
     } else {

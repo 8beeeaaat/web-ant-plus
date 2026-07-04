@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/fitness-equipment-device/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -133,17 +133,17 @@ function applyEquipmentState(
   stateBits: number,
 ): void {
   switch (stateBits) {
-    case 1:
+    case Constants.FITNESS_STATE_OFF:
       updates.state = "OFF";
       break;
-    case 2:
+    case Constants.FITNESS_STATE_READY:
       updates.state = "READY";
       Object.assign(updates, RESET_UPDATES);
       break;
-    case 3:
+    case Constants.FITNESS_STATE_IN_USE:
       updates.state = "IN_USE";
       break;
-    case 4:
+    case Constants.FITNESS_STATE_FINISHED:
       updates.state = "FINISHED";
       break;
     default:
@@ -160,70 +160,95 @@ export function decodeFitnessEquipment<
   TState extends FitnessEquipmentSensorState,
 >(state: Readonly<TState>, data: DataView): TState {
   const updates: Draft<FitnessEquipmentSensorState> = {};
-  const page = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const page = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
   switch (page) {
-    case 0x01: {
+    case Constants.FITNESS_PAGE_CALIBRATION: {
       // Calibration request/response.
-      const temperature = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      if (temperature !== 0xff) {
-        updates.temperature = -25 + temperature * 0.5;
+      const temperature = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      if (temperature !== Constants.INVALID_BYTE) {
+        updates.temperature =
+          Constants.FITNESS_TEMP_OFFSET +
+          temperature * Constants.FITNESS_TEMP_SCALE;
       }
-      const calBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      if (calBF & 0x40) {
-        updates.zeroOffset = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
+      const calBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      if (calBF & Constants.FITNESS_ZERO_OFFSET_FLAG) {
+        updates.zeroOffset = data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+          true,
+        );
       }
-      if (calBF & 0x80) {
-        updates.spinDownTime = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true);
+      if (calBF & Constants.FITNESS_SPIN_DOWN_TIME_FLAG) {
+        updates.spinDownTime = data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+          true,
+        );
       }
       break;
     }
-    case 0x10: {
+    case Constants.FITNESS_PAGE_GENERAL_FE: {
       // General FE data.
-      const equipmentTypeBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      switch (equipmentTypeBF & 0x1f) {
-        case 19:
+      const equipmentTypeBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      switch (equipmentTypeBF & Constants.FITNESS_EQUIPMENT_TYPE_MASK) {
+        case Constants.FITNESS_EQUIPMENT_TYPE_TREADMILL:
           updates.equipmentType = "Treadmill";
           break;
-        case 20:
+        case Constants.FITNESS_EQUIPMENT_TYPE_ELLIPTICAL:
           updates.equipmentType = "Elliptical";
           break;
-        case 21:
+        case Constants.FITNESS_EQUIPMENT_TYPE_RESERVED:
           updates.equipmentType = "Reserved";
           break;
-        case 22:
+        case Constants.FITNESS_EQUIPMENT_TYPE_ROWER:
           updates.equipmentType = "Rower";
           break;
-        case 23:
+        case Constants.FITNESS_EQUIPMENT_TYPE_CLIMBER:
           updates.equipmentType = "Climber";
           break;
-        case 24:
+        case Constants.FITNESS_EQUIPMENT_TYPE_NORDIC_SKIER:
           updates.equipmentType = "NordicSkier";
           break;
-        case 25:
+        case Constants.FITNESS_EQUIPMENT_TYPE_TRAINER:
           updates.equipmentType = "Trainer/StationaryBike";
           break;
         default:
           updates.equipmentType = "General";
           break;
       }
-      let elapsedTime = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      let distance = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const speed = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-      const heartRate = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-      const capStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
-      if (heartRate !== 0xff) {
-        switch (capStateBF & 0x03) {
-          case 3: {
+      let elapsedTime = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      let distance = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const speed = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      const heartRate = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+      );
+      const capStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
+      if (heartRate !== Constants.INVALID_BYTE) {
+        switch (capStateBF & Constants.FITNESS_HEART_RATE_SOURCE_MASK) {
+          case Constants.FITNESS_HEART_RATE_SOURCE_HAND_CONTACT: {
             updates.heartRate = heartRate;
             updates.heartRateSource = "HandContact";
             break;
           }
-          case 2: {
+          case Constants.FITNESS_HEART_RATE_SOURCE_EM: {
             updates.heartRate = heartRate;
             updates.heartRateSource = "EM";
             break;
           }
-          case 1: {
+          case Constants.FITNESS_HEART_RATE_SOURCE_ANT_PLUS: {
             updates.heartRate = heartRate;
             updates.heartRateSource = "ANT+";
             break;
@@ -236,294 +261,421 @@ export function decodeFitnessEquipment<
         }
       }
 
-      elapsedTime /= 4;
-      const oldElapsedTime = (state.elapsedTime || 0) % 64;
+      elapsedTime /= Constants.FITNESS_ELAPSED_TIME_SCALE;
+      const oldElapsedTime =
+        (state.elapsedTime || 0) % Constants.FITNESS_ELAPSED_TIME_ROLLOVER;
       if (elapsedTime !== oldElapsedTime) {
         if (oldElapsedTime > elapsedTime) {
           // Hit rollover value
-          elapsedTime += 64;
+          elapsedTime += Constants.FITNESS_ELAPSED_TIME_ROLLOVER;
         }
       }
       updates.elapsedTime =
         (state.elapsedTime || 0) + elapsedTime - oldElapsedTime;
 
-      if (capStateBF & 0x04) {
-        const oldDistance = (state.distance || 0) % 256;
+      if (capStateBF & Constants.FITNESS_DISTANCE_ENABLED_FLAG) {
+        const oldDistance =
+          (state.distance || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (distance !== oldDistance) {
           if (oldDistance > distance) {
             // Hit rollover value
-            distance += 256;
+            distance += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.distance = (state.distance || 0) + distance - oldDistance;
       } else {
         updates.distance = undefined;
       }
-      if (capStateBF & 0x08) {
-        updates.virtualSpeed = speed / 1000;
+      if (capStateBF & Constants.FITNESS_VIRTUAL_SPEED_FLAG) {
+        updates.virtualSpeed = speed / Constants.FITNESS_SPEED_SCALE;
         updates.realSpeed = undefined;
       } else {
         updates.virtualSpeed = undefined;
-        updates.realSpeed = speed / 1000;
+        updates.realSpeed = speed / Constants.FITNESS_SPEED_SCALE;
       }
-      applyEquipmentState(updates, (capStateBF & 0x70) >> 4);
-      if (capStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (capStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (capStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
       break;
     }
-    case 0x11: {
+    case Constants.FITNESS_PAGE_GENERAL_SETTINGS: {
       // General settings.
-      const cycleLen = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const incline = data.getInt16(BUFFER_INDEX_MSG_DATA + 4, true);
-      const resistance = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-      const capStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
-      if (cycleLen !== 0xff) {
-        updates.cycleLength = cycleLen / 100;
+      const cycleLen = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const incline = data.getInt16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      const resistance = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+      );
+      const capStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
+      if (cycleLen !== Constants.INVALID_BYTE) {
+        updates.cycleLength = cycleLen / Constants.FITNESS_CYCLE_LENGTH_SCALE;
       }
-      if (incline >= -10000 && incline <= 10000) {
-        updates.incline = incline / 100;
+      if (
+        incline >= Constants.FITNESS_INCLINE_MIN &&
+        incline <= Constants.FITNESS_INCLINE_MAX
+      ) {
+        updates.incline = incline / Constants.FITNESS_INCLINE_SCALE;
       }
-      if (resistance !== 0xff) {
+      if (resistance !== Constants.INVALID_BYTE) {
         updates.resistance = resistance;
       }
-      applyEquipmentState(updates, (capStateBF & 0x70) >> 4);
-      if (capStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (capStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (capStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
       break;
     }
-    case 0x12: {
+    case Constants.FITNESS_PAGE_METABOLIC_DATA: {
       // General FE metabolic data.
-      const mets = data.getUint16(BUFFER_INDEX_MSG_DATA + 2, true);
-      const caloricbr = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-      const calories = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-      const capStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
-      if (mets !== 0xffff) {
-        updates.mets = mets / 100;
+      const mets = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        true,
+      );
+      const caloricbr = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      const calories = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+      );
+      const capStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
+      if (mets !== Constants.INVALID_UINT16) {
+        updates.mets = mets / Constants.FITNESS_METS_SCALE;
       }
-      if (caloricbr !== 0xffff) {
-        updates.caloricBurnRate = caloricbr / 10;
+      if (caloricbr !== Constants.INVALID_UINT16) {
+        updates.caloricBurnRate =
+          caloricbr / Constants.FITNESS_CALORIC_BURN_RATE_SCALE;
       }
-      if (capStateBF & 0x01) {
+      if (capStateBF & Constants.FITNESS_CALORIES_FLAG) {
         updates.calories = calories;
       }
-      applyEquipmentState(updates, (capStateBF & 0x70) >> 4);
-      if (capStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (capStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (capStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
       break;
     }
-    case 0x13: {
+    case Constants.FITNESS_PAGE_TREADMILL: {
       // Treadmill-specific data.
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 4);
-      let negDistance = data.getUint8(BUFFER_INDEX_MSG_DATA + 5);
-      let posDistance = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      );
+      let negDistance = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+      );
+      let posDistance = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (flagStateBF & 0x02) {
-        const oldNegDistance = (state.descendedDistance || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_NEG_DISTANCE_FLAG) {
+        const oldNegDistance =
+          (state.descendedDistance || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (negDistance !== oldNegDistance) {
           if (oldNegDistance > negDistance) {
-            negDistance += 256;
+            negDistance += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.descendedDistance =
           (state.descendedDistance || 0) + negDistance - oldNegDistance;
       }
 
-      if (flagStateBF & 0x01) {
-        const oldPosDistance = (state.ascendedDistance || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_POS_DISTANCE_FLAG) {
+        const oldPosDistance =
+          (state.ascendedDistance || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (posDistance !== oldPosDistance) {
           if (oldPosDistance > posDistance) {
-            posDistance += 256;
+            posDistance += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.ascendedDistance =
           (state.ascendedDistance || 0) + posDistance - oldPosDistance;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x14: {
+    case Constants.FITNESS_PAGE_ELLIPTICAL: {
       // Elliptical-specific data.
-      let posDistance = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      let strides = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 4);
-      const power = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let posDistance = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      let strides = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      );
+      const power = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+        true,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (power !== 0xffff) {
+      if (power !== Constants.INVALID_UINT16) {
         updates.instantaneousPower = power;
       }
 
-      if (flagStateBF & 0x02) {
-        const oldPosDistance = (state.ascendedDistance || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_NEG_DISTANCE_FLAG) {
+        const oldPosDistance =
+          (state.ascendedDistance || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (posDistance !== oldPosDistance) {
           if (oldPosDistance > posDistance) {
-            posDistance += 256;
+            posDistance += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.ascendedDistance =
           (state.ascendedDistance || 0) + posDistance - oldPosDistance;
       }
 
-      if (flagStateBF & 0x01) {
-        const oldStrides = (state.strides || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_POS_DISTANCE_FLAG) {
+        const oldStrides =
+          (state.strides || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (strides !== oldStrides) {
           if (oldStrides > strides) {
-            strides += 256;
+            strides += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.strides = (state.strides || 0) + strides - oldStrides;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x16: {
+    case Constants.FITNESS_PAGE_ROWER: {
       // Rower-specific data.
-      let strokes = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 4);
-      const power = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let strokes = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      );
+      const power = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+        true,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (power !== 0xffff) {
+      if (power !== Constants.INVALID_UINT16) {
         updates.instantaneousPower = power;
       }
 
-      if (flagStateBF & 0x01) {
-        const oldStrokes = (state.strokes || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_POS_DISTANCE_FLAG) {
+        const oldStrokes =
+          (state.strokes || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (strokes !== oldStrokes) {
           if (oldStrokes > strokes) {
-            strokes += 256;
+            strokes += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.strokes = (state.strokes || 0) + strokes - oldStrokes;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x17: {
+    case Constants.FITNESS_PAGE_CLIMBER: {
       // Climber-specific data.
-      let strides = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 4);
-      const power = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let strides = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      );
+      const power = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+        true,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (power !== 0xffff) {
+      if (power !== Constants.INVALID_UINT16) {
         updates.instantaneousPower = power;
       }
 
-      if (flagStateBF & 0x01) {
-        const oldStrides = (state.strides || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_POS_DISTANCE_FLAG) {
+        const oldStrides =
+          (state.strides || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (strides !== oldStrides) {
           if (oldStrides > strides) {
-            strides += 256;
+            strides += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.strides = (state.strides || 0) + strides - oldStrides;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x18: {
+    case Constants.FITNESS_PAGE_NORDIC_SKIER: {
       // Nordic skier-specific data.
-      let strides = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 4);
-      const power = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let strides = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      );
+      const power = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+        true,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (power !== 0xffff) {
+      if (power !== Constants.INVALID_UINT16) {
         updates.instantaneousPower = power;
       }
 
-      if (flagStateBF & 0x01) {
-        const oldStrides = (state.strides || 0) % 256;
+      if (flagStateBF & Constants.FITNESS_POS_DISTANCE_FLAG) {
+        const oldStrides =
+          (state.strides || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
         if (strides !== oldStrides) {
           if (oldStrides > strides) {
-            strides += 256;
+            strides += Constants.FITNESS_DISTANCE_ROLLOVER;
           }
         }
         updates.strides = (state.strides || 0) + strides - oldStrides;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x19: {
+    case Constants.FITNESS_PAGE_TRAINER_POWER: {
       // Trainer/stationary bike-specific data (power).
       const oldEventCount = state.eventCount0x19 || 0;
 
-      let eventCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      const cadence = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      let accPower = data.getUint16(BUFFER_INDEX_MSG_DATA + 3, true);
-      const power = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true) & 0xfff;
-      const trainerStatus = data.getUint8(BUFFER_INDEX_MSG_DATA + 6) >> 4;
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let eventCount = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      const cadence = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      let accPower = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        true,
+      );
+      const power =
+        data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+          true,
+        ) & Constants.FITNESS_POWER_MASK;
+      const trainerStatus =
+        data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        ) >> Constants.FITNESS_TRAINER_STATUS_SHIFT;
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
       if (eventCount !== oldEventCount) {
         updates.eventCount0x19 = eventCount;
         if (oldEventCount > eventCount) {
           // Hit rollover value
-          eventCount += 255;
+          eventCount += Constants.FITNESS_EVENT_COUNT_ROLLOVER;
         }
       }
 
-      if (cadence !== 0xff) {
+      if (cadence !== Constants.INVALID_BYTE) {
         updates.cadence = cadence;
       }
 
-      if (power !== 0xfff) {
+      if (power !== Constants.INVALID_UINT12) {
         updates.instantaneousPower = power;
 
-        const oldAccPower = (state.accumulatedPower || 0) % 65536;
+        const oldAccPower =
+          (state.accumulatedPower || 0) % Constants.UINT16_ROLLOVER;
         if (accPower !== oldAccPower) {
           if (oldAccPower > accPower) {
-            accPower += 65536;
+            accPower += Constants.UINT16_ROLLOVER;
           }
         }
         updates.accumulatedPower =
@@ -535,14 +687,14 @@ export function decodeFitnessEquipment<
 
       updates.trainerStatus = trainerStatus;
 
-      switch (flagStateBF & 0x03) {
-        case 0:
+      switch (flagStateBF & Constants.FITNESS_TARGET_STATUS_MASK) {
+        case Constants.FITNESS_TARGET_STATUS_ON_TARGET:
           updates.targetStatus = "OnTarget";
           break;
-        case 1:
+        case Constants.FITNESS_TARGET_STATUS_LOW_SPEED:
           updates.targetStatus = "LowSpeed";
           break;
-        case 2:
+        case Constants.FITNESS_TARGET_STATUS_HIGH_SPEED:
           updates.targetStatus = "HighSpeed";
           break;
         default:
@@ -550,109 +702,157 @@ export function decodeFitnessEquipment<
           break;
       }
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
-
       break;
     }
-    case 0x1a: {
+    case Constants.FITNESS_PAGE_TRAINER_TORQUE: {
       // Trainer/stationary bike-specific data (torque).
       const oldEventCount = state.eventCount0x1A || 0;
 
-      let eventCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      let wheelTicks = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      let accWheelPeriod = data.getUint16(BUFFER_INDEX_MSG_DATA + 3, true);
-      let accTorque = data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true);
-      const flagStateBF = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      let eventCount = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      let wheelTicks = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      let accWheelPeriod = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        true,
+      );
+      let accTorque = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+        true,
+      );
+      const flagStateBF = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
       if (eventCount !== oldEventCount) {
         updates.eventCount0x1A = eventCount;
         if (oldEventCount > eventCount) {
           // Hit rollover value
-          eventCount += 255;
+          eventCount += Constants.FITNESS_EVENT_COUNT_ROLLOVER;
         }
       }
 
-      const oldWheelTicks = (state.wheelTicks || 0) % 256;
+      const oldWheelTicks =
+        (state.wheelTicks || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
       if (wheelTicks !== oldWheelTicks) {
         if (oldWheelTicks > wheelTicks) {
-          wheelTicks += 65536;
+          wheelTicks += Constants.UINT16_ROLLOVER;
         }
       }
       updates.wheelTicks = (state.wheelTicks || 0) + wheelTicks - oldWheelTicks;
 
-      const oldWheelPeriod = (state.wheelPeriod || 0) % 256;
+      const oldWheelPeriod =
+        (state.wheelPeriod || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
       if (accWheelPeriod !== oldWheelPeriod) {
         if (oldWheelPeriod > accWheelPeriod) {
-          accWheelPeriod += 65536;
+          accWheelPeriod += Constants.UINT16_ROLLOVER;
         }
       }
       updates.wheelPeriod =
         (state.wheelPeriod || 0) + accWheelPeriod - oldWheelPeriod;
 
-      const oldTorque = (state.torque || 0) % 256;
+      const oldTorque =
+        (state.torque || 0) % Constants.FITNESS_DISTANCE_ROLLOVER;
       if (accTorque !== oldTorque) {
         if (oldTorque > accTorque) {
-          accTorque += 65536;
+          accTorque += Constants.UINT16_ROLLOVER;
         }
       }
       updates.torque = (state.torque || 0) + accTorque - oldTorque;
 
-      applyEquipmentState(updates, (flagStateBF & 0x70) >> 4);
-      if (flagStateBF & 0x80) {
+      applyEquipmentState(
+        updates,
+        (flagStateBF & Constants.FITNESS_STATE_MASK) >>
+          Constants.FITNESS_STATE_SHIFT,
+      );
+      if (flagStateBF & Constants.FITNESS_LAP_FLAG) {
         // lap
       }
 
       break;
     }
-    case 0x50: {
+    case Constants.DATA_PAGE_COMMON_MANUFACTURER_INFO: {
       // Manufacturer's information.
-      updates.hwVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      updates.manId = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-      updates.modelNum = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true);
+      updates.hwVersion = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      updates.manId = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      updates.modelNum = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        true,
+      );
       break;
     }
-    case 0x51: {
+    case Constants.DATA_PAGE_COMMON_PRODUCT_INFO: {
       // Product information.
-      const swRevSup = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      const swRevMain = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const serial = data.getInt32(BUFFER_INDEX_MSG_DATA + 4, true);
+      const swRevSup = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      const swRevMain = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const serial = data.getInt32(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
 
       updates.swVersion = swRevMain;
 
-      if (swRevSup !== 0xff) {
-        updates.swVersion += swRevSup / 1000;
+      if (swRevSup !== Constants.INVALID_BYTE) {
+        updates.swVersion += swRevSup / Constants.MUSCLE_OXYGEN_SW_SUP_SCALE;
       }
 
-      if (serial !== 0xffffffff) {
+      if (serial !== Constants.INVALID_UINT32) {
         updates.serialNumber = serial;
       }
 
       break;
     }
-    case 0x56: {
+    case Constants.FITNESS_PAGE_PAIRED_DEVICES: {
       // Paired devices.
-      const idx = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      const tot = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      const chState = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const devId = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-      const devType = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+      const idx = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      const tot = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      const chState = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const devId = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      const devType = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+      );
 
       let pairedDevices = state.pairedDevices ?? [];
 
-      if (idx === 0) {
+      if (idx === Constants.DEFAULT_CHANNEL) {
         pairedDevices = [];
       }
 
-      if (tot > 0) {
+      if (tot > Constants.DEFAULT_CHANNEL) {
         pairedDevices = [
           ...pairedDevices,
           {
             id: devId,
             type: devType,
-            paired: !!(chState & 0x80),
+            paired: !!(chState & Constants.TOGGLE_MASK),
           },
         ];
       }
@@ -704,44 +904,103 @@ export function buildUserConfigurationPayload(
   const { userWeight, bikeWeight, wheelDiameter, gearRatio } = options;
   const m =
     userWeight === undefined
-      ? 0xffff
-      : Math.max(0, Math.min(65534, Math.round(userWeight * 100)));
+      ? Constants.INVALID_UINT16
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_USER_WEIGHT_MAX,
+            Math.round(userWeight * Constants.FITNESS_USER_WEIGHT_SCALE),
+          ),
+        );
   const df =
-    wheelDiameter === undefined ? 0xff : Math.round(wheelDiameter * 10) % 10;
+    wheelDiameter === undefined
+      ? Constants.INVALID_BYTE
+      : Math.round(
+          wheelDiameter * Constants.FITNESS_WHEEL_DIAMETER_FRACTION_SCALE,
+        ) % Constants.FITNESS_WHEEL_DIAMETER_FRACTION_MODULO;
   const mb =
     bikeWeight === undefined
-      ? 0xfff
-      : Math.max(0, Math.min(1000, Math.round(bikeWeight * 20)));
+      ? Constants.INVALID_UINT12
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_BIKE_WEIGHT_MAX,
+            Math.round(bikeWeight * Constants.FITNESS_BIKE_WEIGHT_SCALE),
+          ),
+        );
   const d =
     wheelDiameter === undefined
-      ? 0xff
-      : Math.max(0, Math.min(254, Math.round(wheelDiameter)));
+      ? Constants.INVALID_BYTE
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_WHEEL_DIAMETER_MAX,
+            Math.round(wheelDiameter),
+          ),
+        );
   const gr =
     gearRatio === undefined
-      ? 0x00
-      : Math.max(1, Math.min(255, Math.round(gearRatio / 0.03)));
+      ? Constants.DEFAULT_CHANNEL
+      : Math.max(
+          Constants.FITNESS_GEAR_RATIO_MIN_ENCODED,
+          Math.min(
+            Constants.FITNESS_GEAR_RATIO_MAX_ENCODED,
+            Math.round(gearRatio / Constants.FITNESS_GEAR_RATIO_SCALE),
+          ),
+        );
   return [
-    0x37,
-    m & 0xff,
-    (m >> 8) & 0xff,
-    0xff,
-    (df & 0xf) | ((mb & 0xf) << 4),
-    (mb >> 4) & 0xf,
-    d & 0xff,
-    gr & 0xff,
+    Constants.FITNESS_PAGE_USER_CONFIGURATION,
+    m & Constants.BYTE_MASK,
+    (m >> Constants.BYTE_BITS) & Constants.BYTE_MASK,
+    Constants.INVALID_BYTE,
+    (df & Constants.NIBBLE_MASK) |
+      ((mb & Constants.NIBBLE_MASK) << Constants.NIBBLE_BITS),
+    (mb >> Constants.NIBBLE_BITS) & Constants.NIBBLE_MASK,
+    d & Constants.BYTE_MASK,
+    gr & Constants.BYTE_MASK,
   ];
 }
 
 /** Builds the page 0x30 (basic resistance) payload. */
 export function buildBasicResistancePayload(resistance: number): number[] {
-  const res = Math.max(0, Math.min(200, Math.round(resistance * 2)));
-  return [0x30, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, res & 0xff];
+  const res = Math.max(
+    Constants.DEFAULT_CHANNEL,
+    Math.min(
+      Constants.FITNESS_BASIC_RESISTANCE_MAX_ENCODED,
+      Math.round(resistance * Constants.FITNESS_BASIC_RESISTANCE_SCALE),
+    ),
+  );
+  return [
+    Constants.FITNESS_PAGE_BASIC_RESISTANCE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    res & Constants.BYTE_MASK,
+  ];
 }
 
 /** Builds the page 0x31 (target power) payload. */
 export function buildTargetPowerPayload(power: number): number[] {
-  const p = Math.max(0, Math.min(4000, Math.round(power * 4)));
-  return [0x31, 0xff, 0xff, 0xff, 0xff, 0xff, p & 0xff, (p >> 8) & 0xff];
+  const p = Math.max(
+    Constants.DEFAULT_CHANNEL,
+    Math.min(
+      Constants.FITNESS_TARGET_POWER_MAX_ENCODED,
+      Math.round(power * Constants.FITNESS_TARGET_POWER_SCALE),
+    ),
+  );
+  return [
+    Constants.FITNESS_PAGE_TARGET_POWER,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    p & Constants.BYTE_MASK,
+    (p >> Constants.BYTE_BITS) & Constants.BYTE_MASK,
+  ];
 }
 
 /** Builds the page 0x32 (wind resistance) payload. */
@@ -751,17 +1010,44 @@ export function buildWindResistancePayload(
   const { windCoeff, windSpeed, draftFactor } = options;
   const wc =
     windCoeff === undefined
-      ? 0xff
-      : Math.max(0, Math.min(186, Math.round(windCoeff * 100)));
+      ? Constants.INVALID_BYTE
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_WIND_COEFF_MAX_ENCODED,
+            Math.round(windCoeff * Constants.FITNESS_WIND_COEFF_SCALE),
+          ),
+        );
   const ws =
     windSpeed === undefined
-      ? 0xff
-      : Math.max(0, Math.min(254, Math.round(windSpeed + 127)));
+      ? Constants.INVALID_BYTE
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_WIND_SPEED_MAX_ENCODED,
+            Math.round(windSpeed + Constants.FITNESS_WIND_SPEED_OFFSET),
+          ),
+        );
   const df =
     draftFactor === undefined
-      ? 0xff
-      : Math.max(0, Math.min(100, Math.round(draftFactor * 100)));
-  return [0x32, 0xff, 0xff, 0xff, 0xff, wc & 0xff, ws & 0xff, df & 0xff];
+      ? Constants.INVALID_BYTE
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_DRAFT_FACTOR_MAX_ENCODED,
+            Math.round(draftFactor * Constants.FITNESS_DRAFT_FACTOR_SCALE),
+          ),
+        );
+  return [
+    Constants.FITNESS_PAGE_WIND_RESISTANCE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    wc & Constants.BYTE_MASK,
+    ws & Constants.BYTE_MASK,
+    df & Constants.BYTE_MASK,
+  ];
 }
 
 /** Builds the page 0x33 (track resistance) payload. */
@@ -771,20 +1057,47 @@ export function buildTrackResistancePayload(
   const { slope, rollingResistanceCoeff } = options;
   const s =
     slope === undefined
-      ? 0xffff
-      : Math.max(0, Math.min(40000, Math.round((slope + 200) * 100)));
+      ? Constants.INVALID_UINT16
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_TRACK_SLOPE_MAX_ENCODED,
+            Math.round(
+              (slope + Constants.FITNESS_TRACK_SLOPE_OFFSET) *
+                Constants.FITNESS_TRACK_SLOPE_SCALE,
+            ),
+          ),
+        );
   const rr =
     rollingResistanceCoeff === undefined
-      ? 0xff
-      : Math.max(0, Math.min(254, Math.round(rollingResistanceCoeff * 20000)));
-  return [0x33, 0xff, 0xff, 0xff, 0xff, s & 0xff, (s >> 8) & 0xff, rr & 0xff];
+      ? Constants.INVALID_BYTE
+      : Math.max(
+          Constants.DEFAULT_CHANNEL,
+          Math.min(
+            Constants.FITNESS_ROLLING_RESISTANCE_MAX_ENCODED,
+            Math.round(
+              rollingResistanceCoeff *
+                Constants.FITNESS_ROLLING_RESISTANCE_SCALE,
+            ),
+          ),
+        );
+  return [
+    Constants.FITNESS_PAGE_TRACK_RESISTANCE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    Constants.INVALID_BYTE,
+    s & Constants.BYTE_MASK,
+    (s >> Constants.BYTE_BITS) & Constants.BYTE_MASK,
+    rr & Constants.BYTE_MASK,
+  ];
 }
 
 export class FitnessEquipmentSensor extends AntPlusSensor<FitnessEquipmentSensorState> {
-  static readonly deviceType = 0x11;
+  static readonly deviceType = Constants.DEVICE_TYPE_FITNESS_EQUIPMENT;
 
   protected readonly deviceType = FitnessEquipmentSensor.deviceType;
-  protected readonly period = 8192;
+  protected readonly period = Constants.PERIOD_FITNESS_EQUIPMENT;
 
   protected createState(deviceId: number): FitnessEquipmentSensorState {
     return { deviceId };
@@ -841,7 +1154,7 @@ export class FitnessEquipmentSensor extends AntPlusSensor<FitnessEquipmentSensor
 }
 
 export class FitnessEquipmentScanner extends AntPlusScanner<FitnessEquipmentScanState> {
-  static readonly deviceType = 0x11;
+  static readonly deviceType = Constants.DEVICE_TYPE_FITNESS_EQUIPMENT;
 
   protected readonly deviceType = FitnessEquipmentScanner.deviceType;
 

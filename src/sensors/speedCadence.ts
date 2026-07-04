@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/bicycle-speed-and-cadence/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -26,8 +26,6 @@ export interface SpeedCadenceScanState
   extends SpeedCadenceSensorState,
     ScanState {}
 
-const DEFAULT_WHEEL_CIRCUMFERENCE = 2.199; // default 70cm wheel
-
 type Draft<T> = { -readonly [K in keyof T]?: T[K] };
 
 /**
@@ -48,10 +46,19 @@ export function decodeSpeedCadence<TState extends SpeedCadenceSensorState>(
   const oldSpeedTime = state.speedEventTime;
   const oldSpeedCount = state.cumulativeSpeedRevolutionCount;
 
-  let cadenceTime = data.getUint16(BUFFER_INDEX_MSG_DATA, false);
-  let cadenceCount = data.getUint16(BUFFER_INDEX_MSG_DATA + 2, true);
-  let speedEventTime = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-  let speedRevolutionCount = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true);
+  let cadenceTime = data.getUint16(Constants.BUFFER_INDEX_MSG_DATA, false);
+  let cadenceCount = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+    true,
+  );
+  let speedEventTime = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+    true,
+  );
+  let speedRevolutionCount = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+    true,
+  );
 
   let cadenceDataChanged = false;
   let speedDataChanged = false;
@@ -62,17 +69,23 @@ export function decodeSpeedCadence<TState extends SpeedCadenceSensorState>(
 
     if (oldCadenceTime && oldCadenceTime > cadenceTime) {
       // Hit rollover value
-      cadenceTime += 1024 * 64;
+      cadenceTime +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     if (oldCadenceCount && oldCadenceCount > cadenceCount) {
       // Hit rollover value
-      cadenceCount += 1024 * 64;
+      cadenceCount +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     const cadence =
-      (60 * (cadenceCount - (oldCadenceCount || 0)) * 1024) /
-      (cadenceTime - (oldCadenceTime || 0));
+      (Constants.BIKE_MINUTES_PER_HOUR *
+        (cadenceCount - (oldCadenceCount || Constants.DEFAULT_CHANNEL)) *
+        Constants.BIKE_EVENT_TIME_RESOLUTION) /
+      (cadenceTime - (oldCadenceTime || Constants.DEFAULT_CHANNEL));
     if (!Number.isNaN(cadence)) {
       updates.calculatedCadence = cadence;
       cadenceDataChanged = true;
@@ -85,20 +98,27 @@ export function decodeSpeedCadence<TState extends SpeedCadenceSensorState>(
 
     if (oldSpeedTime && oldSpeedTime > speedEventTime) {
       // Hit rollover value
-      speedEventTime += 1024 * 64;
+      speedEventTime +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     if (oldSpeedCount && oldSpeedCount > speedRevolutionCount) {
       // Hit rollover value
-      speedRevolutionCount += 1024 * 64;
+      speedRevolutionCount +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     const distance =
-      wheelCircumference * (speedRevolutionCount - (oldSpeedCount || 0));
+      wheelCircumference *
+      (speedRevolutionCount - (oldSpeedCount || Constants.DEFAULT_CHANNEL));
     updates.calculatedDistance = distance;
 
     // speed in m/sec
-    const speed = (distance * 1024) / (speedEventTime - (oldSpeedTime || 0));
+    const speed =
+      (distance * Constants.BIKE_EVENT_TIME_RESOLUTION) /
+      (speedEventTime - (oldSpeedTime || Constants.DEFAULT_CHANNEL));
     if (!Number.isNaN(speed)) {
       updates.calculatedSpeed = speed;
       speedDataChanged = true;
@@ -115,12 +135,12 @@ export function decodeSpeedCadence<TState extends SpeedCadenceSensorState>(
 }
 
 export class SpeedCadenceSensor extends AntPlusSensor<SpeedCadenceSensorState> {
-  static readonly deviceType = 0x79;
+  static readonly deviceType = Constants.DEVICE_TYPE_SPEED_CADENCE;
 
   protected readonly deviceType = SpeedCadenceSensor.deviceType;
-  protected readonly period = 8086;
+  protected readonly period = Constants.PERIOD_BICYCLE_SPEED_CADENCE;
 
-  wheelCircumference = DEFAULT_WHEEL_CIRCUMFERENCE;
+  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
 
   protected createState(deviceId: number): SpeedCadenceSensorState {
     return { deviceId };
@@ -135,11 +155,11 @@ export class SpeedCadenceSensor extends AntPlusSensor<SpeedCadenceSensorState> {
 }
 
 export class SpeedCadenceScanner extends AntPlusScanner<SpeedCadenceScanState> {
-  static readonly deviceType = 0x79;
+  static readonly deviceType = Constants.DEVICE_TYPE_SPEED_CADENCE;
 
   protected readonly deviceType = SpeedCadenceScanner.deviceType;
 
-  wheelCircumference = DEFAULT_WHEEL_CIRCUMFERENCE;
+  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE;
 
   protected createState(deviceId: number): SpeedCadenceScanState {
     return { deviceId };

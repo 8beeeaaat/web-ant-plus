@@ -30,28 +30,43 @@ export class FakeUSBDevice {
   #onSent: ((message: Uint8Array) => void) | undefined;
 
   readonly configuration = {
-    configurationValue: 1,
+    configurationValue: Constants.USB_CONFIGURATION_VALUE,
     interfaces: [
       {
-        interfaceNumber: 0,
+        interfaceNumber: Constants.USB_INTERFACE_NUMBER,
         alternate: {
           endpoints: [
-            { direction: "in", endpointNumber: 1, packetSize: 64 },
-            { direction: "out", endpointNumber: 2, packetSize: 64 },
+            {
+              direction: "in",
+              endpointNumber: Constants.USB_IN_ENDPOINT_NUMBER,
+              packetSize: Constants.USB_ENDPOINT_PACKET_SIZE,
+            },
+            {
+              direction: "out",
+              endpointNumber: Constants.USB_OUT_ENDPOINT_NUMBER,
+              packetSize: Constants.USB_ENDPOINT_PACKET_SIZE,
+            },
           ],
         },
       },
     ],
   };
 
-  constructor(vendorId = 0x0fcf, productId = 0x1008) {
+  constructor(
+    vendorId: number = Constants.DYNASTREAM_USB_VENDOR_ID,
+    productId: number = Constants.GARMIN_STICK_2_PRODUCT_ID,
+  ) {
     this.vendorId = vendorId;
     this.productId = productId;
   }
 
   /** Decoded message id (byte 2) of every transferOut call, in order. */
   get sentMessageIds(): number[] {
-    return this.sentMessages.map((message) => message[2] ?? -1);
+    return this.sentMessages.map(
+      (message) =>
+        message[Constants.BUFFER_INDEX_MSG_TYPE] ??
+        Constants.USB_TRANSFER_MISSING_MESSAGE_ID,
+    );
   }
 
   /** The fake, typed as the real WebUSB device interface. */
@@ -118,25 +133,47 @@ export class FakeUSBDevice {
    * - setNetworkKey -> CHANNEL_EVENT frame for MESSAGE_NETWORK_KEY
    */
   respondToHandshake(options: HandshakeOptions = {}): void {
-    const { maxChannels = 8, canScan = true } = options;
+    const {
+      maxChannels = Constants.CAPABILITIES_NO_TRANSMIT_MESSAGES,
+      canScan = true,
+    } = options;
     this.#onSent = (message) => {
-      const messageId = message[2];
+      const messageId = message[Constants.BUFFER_INDEX_MSG_TYPE];
       if (messageId === Constants.MESSAGE_SYSTEM_RESET) {
-        this.queueResponse(buildMessage([0x20], Constants.MESSAGE_STARTUP));
+        this.queueResponse(
+          buildMessage(
+            [Constants.CAPABILITIES_NO_BURST_MESSAGES],
+            Constants.MESSAGE_STARTUP,
+          ),
+        );
       } else if (
         messageId === Constants.MESSAGE_CHANNEL_REQUEST &&
-        message[4] === Constants.MESSAGE_CAPABILITIES
+        message[Constants.BUFFER_INDEX_MSG_DATA] ===
+          Constants.MESSAGE_CAPABILITIES
       ) {
         this.queueResponse(
           buildMessage(
-            [maxChannels, 0x08, 0x00, 0x00, canScan ? 0x06 : 0x00, 0x00],
+            [
+              maxChannels,
+              Constants.CAPABILITIES_NO_TRANSMIT_MESSAGES,
+              Constants.DEFAULT_CHANNEL,
+              Constants.DEFAULT_CHANNEL,
+              canScan
+                ? Constants.CAPABILITIES_SCAN_SUPPORT_MASK
+                : Constants.DEFAULT_CHANNEL,
+              Constants.DEFAULT_CHANNEL,
+            ],
             Constants.MESSAGE_CAPABILITIES,
           ),
         );
       } else if (messageId === Constants.MESSAGE_NETWORK_KEY) {
         this.queueResponse(
           buildMessage(
-            [0x00, Constants.MESSAGE_NETWORK_KEY, Constants.RESPONSE_NO_ERROR],
+            [
+              Constants.DEFAULT_CHANNEL,
+              Constants.MESSAGE_NETWORK_KEY,
+              Constants.RESPONSE_NO_ERROR,
+            ],
             Constants.MESSAGE_CHANNEL_EVENT,
           ),
         );
@@ -161,7 +198,7 @@ export class FakeUSB {
     const filters = options?.filters ?? [];
     const match = this.devices.find(
       (device) =>
-        filters.length === 0 ||
+        filters.length === Constants.DEFAULT_CHANNEL ||
         filters.some(
           (filter) =>
             (filter.vendorId === undefined ||
@@ -204,5 +241,5 @@ function toUint8Array(data: BufferSource): Uint8Array {
       data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
     );
   }
-  return new Uint8Array(data.slice(0));
+  return new Uint8Array(data.slice(Constants.DEFAULT_CHANNEL));
 }

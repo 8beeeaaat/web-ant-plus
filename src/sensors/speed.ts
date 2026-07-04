@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/bicycle-speed/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -31,8 +31,6 @@ export interface SpeedSensorState extends SensorState {
 
 export interface SpeedScanState extends SpeedSensorState, ScanState {}
 
-const TOGGLE_MASK = 0x80;
-
 type Draft<T> = { -readonly [K in keyof T]?: T[K] };
 
 /**
@@ -46,53 +44,82 @@ export function decodeSpeed<TState extends SpeedSensorState>(
   wheelCircumference: number,
 ): TState | undefined {
   const updates: Draft<SpeedSensorState> = {};
-  const pageNum = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const pageNum = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
 
   switch (
-    pageNum & ~TOGGLE_MASK // check the new pages and remove the toggle bit
+    pageNum & ~Constants.TOGGLE_MASK // check the new pages and remove the toggle bit
   ) {
-    case 1: {
+    case Constants.DATA_PAGE_OPERATING_TIME: {
       // Cumulative operating time.
-      let operatingTime = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      operatingTime |= data.getUint8(BUFFER_INDEX_MSG_DATA + 2) << 8;
-      operatingTime |= data.getUint8(BUFFER_INDEX_MSG_DATA + 3) << 16;
-      updates.operatingTime = operatingTime * 2;
+      let operatingTime = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      operatingTime |=
+        data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        ) << Constants.BYTE_BITS;
+      operatingTime |=
+        data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        ) << Constants.UINT16_BITS;
+      updates.operatingTime =
+        operatingTime * Constants.BIKE_OPERATING_TIME_SCALE;
       break;
     }
-    case 2: {
+    case Constants.DATA_PAGE_MANUFACTURER_INFO: {
       // Manufacturer id and the 4 byte serial number.
-      updates.manId = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
+      updates.manId = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
       updates.serialNumber =
         (state.deviceId |
-          (data.getUint16(BUFFER_INDEX_MSG_DATA + 2, true) << 16)) >>>
-        0;
+          (data.getUint16(
+            Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+            true,
+          ) <<
+            Constants.UINT16_BITS)) >>>
+        Constants.DEFAULT_CHANNEL;
       break;
     }
-    case 3:
+    case Constants.DATA_PAGE_PRODUCT_INFO:
       // HW version, SW version and model number.
-      updates.hwVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      updates.swVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      updates.modelNum = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
+      updates.hwVersion = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      updates.swVersion = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      updates.modelNum = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
       break;
-    case 4: {
-      const batteryFrac = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      const batteryStatus = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      updates.batteryVoltage = (batteryStatus & 0x0f) + batteryFrac / 256;
-      const batteryFlags = (batteryStatus & 0x70) >>> 4;
+    case Constants.DATA_PAGE_BATTERY_STATUS: {
+      const batteryFrac = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      const batteryStatus = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      updates.batteryVoltage =
+        (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
+        batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+      const batteryFlags =
+        (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
+        Constants.BATTERY_STATUS_SHIFT;
       switch (batteryFlags) {
-        case 1:
+        case Constants.BATTERY_STATUS_NEW:
           updates.batteryStatus = "New";
           break;
-        case 2:
+        case Constants.BATTERY_STATUS_GOOD:
           updates.batteryStatus = "Good";
           break;
-        case 3:
+        case Constants.BATTERY_STATUS_OK:
           updates.batteryStatus = "Ok";
           break;
-        case 4:
+        case Constants.BATTERY_STATUS_LOW:
           updates.batteryStatus = "Low";
           break;
-        case 5:
+        case Constants.BATTERY_STATUS_CRITICAL:
           updates.batteryStatus = "Critical";
           break;
         default:
@@ -102,9 +129,13 @@ export function decodeSpeed<TState extends SpeedSensorState>(
       }
       break;
     }
-    case 5:
+    case Constants.DATA_PAGE_MOTION:
       updates.motion =
-        (data.getUint8(BUFFER_INDEX_MSG_DATA + 1) & 0x01) === 0x01;
+        (data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        ) &
+          Constants.MOTION_FLAG) ===
+        Constants.MOTION_FLAG;
       break;
     default:
       break;
@@ -114,8 +145,14 @@ export function decodeSpeed<TState extends SpeedSensorState>(
   const oldSpeedTime = state.speedEventTime;
   const oldSpeedCount = state.cumulativeSpeedRevolutionCount;
 
-  let speedEventTime = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-  let speedRevolutionCount = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true);
+  let speedEventTime = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+    true,
+  );
+  let speedRevolutionCount = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+    true,
+  );
 
   if (speedEventTime !== oldSpeedTime) {
     updates.speedEventTime = speedEventTime;
@@ -123,20 +160,27 @@ export function decodeSpeed<TState extends SpeedSensorState>(
 
     if (oldSpeedTime && oldSpeedTime > speedEventTime) {
       // Hit rollover value.
-      speedEventTime += 1024 * 64;
+      speedEventTime +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     if (oldSpeedCount && oldSpeedCount > speedRevolutionCount) {
       // Hit rollover value.
-      speedRevolutionCount += 1024 * 64;
+      speedRevolutionCount +=
+        Constants.BIKE_EVENT_TIME_RESOLUTION *
+        Constants.BIKE_EVENT_ROLLOVER_BLOCKS;
     }
 
     const distance =
-      wheelCircumference * (speedRevolutionCount - (oldSpeedCount || 0));
+      wheelCircumference *
+      (speedRevolutionCount - (oldSpeedCount || Constants.DEFAULT_CHANNEL));
     updates.calculatedDistance = distance;
 
     // Speed in m/sec.
-    const speed = (distance * 1024) / (speedEventTime - (oldSpeedTime || 0));
+    const speed =
+      (distance * Constants.BIKE_EVENT_TIME_RESOLUTION) /
+      (speedEventTime - (oldSpeedTime || Constants.DEFAULT_CHANNEL));
     if (!Number.isNaN(speed)) {
       updates.calculatedSpeed = speed;
       updates.receivedAt = Date.now();
@@ -148,12 +192,12 @@ export function decodeSpeed<TState extends SpeedSensorState>(
 }
 
 export class SpeedSensor extends AntPlusSensor<SpeedSensorState> {
-  static readonly deviceType = 0x7b;
+  static readonly deviceType = Constants.DEVICE_TYPE_SPEED;
 
   protected readonly deviceType = SpeedSensor.deviceType;
-  protected readonly period = 8086;
+  protected readonly period = Constants.PERIOD_BICYCLE_SPEED_CADENCE;
 
-  wheelCircumference = 2.199; // default 70cm wheel
+  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE; // default 70cm wheel
 
   protected createState(deviceId: number): SpeedSensorState {
     return { deviceId };
@@ -168,11 +212,11 @@ export class SpeedSensor extends AntPlusSensor<SpeedSensorState> {
 }
 
 export class SpeedScanner extends AntPlusScanner<SpeedScanState> {
-  static readonly deviceType = 0x7b;
+  static readonly deviceType = Constants.DEVICE_TYPE_SPEED;
 
   protected readonly deviceType = SpeedScanner.deviceType;
 
-  wheelCircumference = 2.199; // default 70cm wheel
+  wheelCircumference = Constants.DEFAULT_WHEEL_CIRCUMFERENCE; // default 70cm wheel
 
   protected createState(deviceId: number): SpeedScanState {
     return { deviceId };

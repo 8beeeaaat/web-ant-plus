@@ -42,8 +42,6 @@ export type SensorEvents<TState> = {
   eventData: [ChannelEventData];
 };
 
-const ANT_PLUS_FREQUENCY = 57;
-
 type StatusHandler = (status: ChannelEventData) => Promise<boolean>;
 
 type QueuedMessage = {
@@ -114,7 +112,7 @@ abstract class AntChannel<TState extends SensorState> extends TypedEventEmitter<
   protected send(data: AntMessage): Promise<boolean> {
     return new Promise((resolve) => {
       this.#msgQueue.push({ msg: data, resolve });
-      if (this.#msgQueue.length === 1) {
+      if (this.#msgQueue.length === Constants.DEFAULT_INT_BYTE_LENGTH) {
         void this.write(data);
       }
     });
@@ -171,15 +169,17 @@ abstract class AntChannel<TState extends SensorState> extends TypedEventEmitter<
   protected abstract decodeData(data: DataView): void;
 
   async #handleEventMessages(data: DataView): Promise<void> {
-    const messageId = data.getUint8(messages.BUFFER_INDEX_MSG_TYPE);
-    const channel = data.getUint8(messages.BUFFER_INDEX_CHANNEL_NUM);
+    const messageId = data.getUint8(Constants.BUFFER_INDEX_MSG_TYPE);
+    const channel = data.getUint8(Constants.BUFFER_INDEX_CHANNEL_NUM);
     if (channel !== this.#listeningChannel) {
       return;
     }
     if (messageId === Constants.MESSAGE_CHANNEL_EVENT) {
       const status: ChannelEventData = {
-        message: data.getUint8(messages.BUFFER_INDEX_MSG_DATA),
-        code: data.getUint8(messages.BUFFER_INDEX_MSG_DATA + 1),
+        message: data.getUint8(Constants.BUFFER_INDEX_MSG_DATA),
+        code: data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.DEFAULT_INT_BYTE_LENGTH,
+        ),
       };
       const handled =
         this.#statusHandler && (await this.#statusHandler(status));
@@ -217,7 +217,8 @@ export abstract class AntPlusSensor<
   /** Assigns a channel and resolves once the channel is open. */
   async attach(options: AttachOptions): Promise<void> {
     const { channel, deviceId } = options;
-    const transmissionType = options.transmissionType ?? 0;
+    const transmissionType =
+      options.transmissionType ?? Constants.DEFAULT_TRANSMISSION_TYPE;
     const timeout = options.timeout ?? Constants.TIMEOUT_NEVER;
 
     if (this.channel !== undefined) {
@@ -247,13 +248,17 @@ export abstract class AntPlusSensor<
           await this.write(messages.searchChannel(channel, timeout));
           return true;
         case Constants.MESSAGE_CHANNEL_SEARCH_TIMEOUT:
-          await this.write(messages.setFrequency(channel, ANT_PLUS_FREQUENCY));
+          await this.write(
+            messages.setFrequency(channel, Constants.ANT_PLUS_FREQUENCY),
+          );
           return true;
         case Constants.MESSAGE_CHANNEL_FREQUENCY:
           await this.write(messages.setPeriod(channel, this.period));
           return true;
         case Constants.MESSAGE_CHANNEL_PERIOD:
-          await this.write(messages.libConfig(channel, 0xe0));
+          await this.write(
+            messages.libConfig(channel, Constants.LIB_CONFIG_EXTENDED_MESSAGES),
+          );
           return true;
         case Constants.MESSAGE_LIB_CONFIG:
           await this.write(messages.openChannel(channel));
@@ -274,11 +279,14 @@ export abstract class AntPlusSensor<
   }
 
   protected decodeData(data: DataView): void {
-    switch (data.getUint8(messages.BUFFER_INDEX_MSG_TYPE)) {
+    switch (data.getUint8(Constants.BUFFER_INDEX_MSG_TYPE)) {
       case Constants.MESSAGE_CHANNEL_BROADCAST_DATA:
       case Constants.MESSAGE_CHANNEL_ACKNOWLEDGED_DATA:
       case Constants.MESSAGE_CHANNEL_BURST_DATA: {
-        if (this.channel !== undefined && this.deviceId === 0) {
+        if (
+          this.channel !== undefined &&
+          this.deviceId === Constants.DEFAULT_DEVICE_ID
+        ) {
           void this.write(
             messages.requestMessage(this.channel, Constants.MESSAGE_CHANNEL_ID),
           );
@@ -294,9 +302,9 @@ export abstract class AntPlusSensor<
         break;
       }
       case Constants.MESSAGE_CHANNEL_ID:
-        this.deviceId = data.getUint16(messages.BUFFER_INDEX_MSG_DATA, true);
+        this.deviceId = data.getUint16(Constants.BUFFER_INDEX_MSG_DATA, true);
         this.transmissionType = data.getUint8(
-          messages.BUFFER_INDEX_MSG_DATA + 3,
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.BUFFER_INDEX_CHANNEL_NUM,
         );
         break;
       default:
@@ -344,23 +352,34 @@ export abstract class AntPlusScanner<
       throw new ChannelStateError("stick cannot scan");
     }
 
-    const channel = 0;
+    const channel = Constants.DEFAULT_CHANNEL;
     const handler: StatusHandler = async (status) => {
       if (await this.handleCommonStatus(status, channel)) {
         return true;
       }
       switch (status.message) {
         case Constants.MESSAGE_CHANNEL_ASSIGN:
-          await this.write(messages.setDevice(channel, 0, 0, 0));
+          await this.write(
+            messages.setDevice(
+              channel,
+              Constants.DEFAULT_DEVICE_ID,
+              Constants.DEFAULT_DEVICE_ID,
+              Constants.DEFAULT_TRANSMISSION_TYPE,
+            ),
+          );
           return true;
         case Constants.MESSAGE_CHANNEL_ID:
-          await this.write(messages.setFrequency(channel, ANT_PLUS_FREQUENCY));
+          await this.write(
+            messages.setFrequency(channel, Constants.ANT_PLUS_FREQUENCY),
+          );
           return true;
         case Constants.MESSAGE_CHANNEL_FREQUENCY:
           await this.write(messages.setRxExt());
           return true;
         case Constants.MESSAGE_ENABLE_RX_EXT:
-          await this.write(messages.libConfig(channel, 0xe0));
+          await this.write(
+            messages.libConfig(channel, Constants.LIB_CONFIG_EXTENDED_MESSAGES),
+          );
           return true;
         case Constants.MESSAGE_LIB_CONFIG:
           await this.write(messages.openRxScan());
@@ -377,10 +396,20 @@ export abstract class AntPlusScanner<
       this.once("attached", resolve);
     });
     if (this.driver.isScanning()) {
-      this.beginChannel(channel, 0, 0, handler);
+      this.beginChannel(
+        channel,
+        Constants.DEFAULT_DEVICE_ID,
+        Constants.DEFAULT_TRANSMISSION_TYPE,
+        handler,
+      );
       queueMicrotask(() => this.emit("attached"));
     } else if (this.driver.attach(this, true)) {
-      this.beginChannel(channel, 0, 0, handler);
+      this.beginChannel(
+        channel,
+        Constants.DEFAULT_DEVICE_ID,
+        Constants.DEFAULT_TRANSMISSION_TYPE,
+        handler,
+      );
       await this.write(messages.assignChannel(channel, "receive"));
     } else {
       throw new ChannelStateError("cannot attach");
@@ -390,18 +419,26 @@ export abstract class AntPlusScanner<
 
   protected decodeData(data: DataView): void {
     if (
-      data.byteLength <= messages.BUFFER_INDEX_EXT_MSG_BEGIN + 3 ||
-      !(data.getUint8(messages.BUFFER_INDEX_EXT_MSG_BEGIN) & 0x80)
+      data.byteLength <=
+        Constants.BUFFER_INDEX_EXT_MSG_BEGIN +
+          Constants.EXT_MSG_DEVICE_TYPE_OFFSET ||
+      !(
+        data.getUint8(Constants.BUFFER_INDEX_EXT_MSG_BEGIN) &
+        Constants.EXT_MSG_DEVICE_ID_FLAG
+      )
     ) {
       console.warn("wrong message format", data.buffer);
       return;
     }
 
     const deviceId = data.getUint16(
-      messages.BUFFER_INDEX_EXT_MSG_BEGIN + 1,
+      Constants.BUFFER_INDEX_EXT_MSG_BEGIN + Constants.EXT_MSG_DEVICE_ID_OFFSET,
       true,
     );
-    const deviceType = data.getUint8(messages.BUFFER_INDEX_EXT_MSG_BEGIN + 3);
+    const deviceType = data.getUint8(
+      Constants.BUFFER_INDEX_EXT_MSG_BEGIN +
+        Constants.EXT_MSG_DEVICE_TYPE_OFFSET,
+    );
     if (deviceType !== this.deviceType) {
       return;
     }
@@ -413,18 +450,27 @@ export abstract class AntPlusScanner<
     }
 
     if (
-      data.getUint8(messages.BUFFER_INDEX_EXT_MSG_BEGIN) & 0x40 &&
-      data.getUint8(messages.BUFFER_INDEX_EXT_MSG_BEGIN + 5) === 0x20
+      data.getUint8(Constants.BUFFER_INDEX_EXT_MSG_BEGIN) &
+        Constants.EXT_MSG_RSSI_FLAG &&
+      data.getUint8(
+        Constants.BUFFER_INDEX_EXT_MSG_BEGIN +
+          Constants.EXT_MSG_RSSI_TYPE_OFFSET,
+      ) === Constants.EXT_MSG_RSSI_TYPE_DBM
     ) {
       state = {
         ...state,
-        rssi: data.getInt8(messages.BUFFER_INDEX_EXT_MSG_BEGIN + 6),
-        threshold: data.getInt8(messages.BUFFER_INDEX_EXT_MSG_BEGIN + 7),
+        rssi: data.getInt8(
+          Constants.BUFFER_INDEX_EXT_MSG_BEGIN + Constants.EXT_MSG_RSSI_OFFSET,
+        ),
+        threshold: data.getInt8(
+          Constants.BUFFER_INDEX_EXT_MSG_BEGIN +
+            Constants.EXT_MSG_RSSI_THRESHOLD_OFFSET,
+        ),
       } as TState;
       this.#states.set(deviceId, state);
     }
 
-    switch (data.getUint8(messages.BUFFER_INDEX_MSG_TYPE)) {
+    switch (data.getUint8(Constants.BUFFER_INDEX_MSG_TYPE)) {
       case Constants.MESSAGE_CHANNEL_BROADCAST_DATA:
       case Constants.MESSAGE_CHANNEL_ACKNOWLEDGED_DATA:
       case Constants.MESSAGE_CHANNEL_BURST_DATA: {

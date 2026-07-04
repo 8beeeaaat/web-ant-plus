@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/ant-device-profile-muscle-oxygen/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -13,12 +13,17 @@ import {
 } from "./base.js";
 
 export type MeasurementValue = number | "AmbientLightTooHigh" | "Invalid";
+export type MeasurementInterval =
+  | typeof Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_QUARTER_SECONDS
+  | typeof Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_HALF_SECONDS
+  | typeof Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_ONE_SECOND
+  | typeof Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_TWO_SECONDS;
 
 export interface MuscleOxygenSensorState extends SensorState {
   readonly eventCount?: number;
   readonly utcTimeRequired?: boolean;
   readonly supportANTFS?: boolean;
-  readonly measurementInterval?: 0.25 | 0.5 | 1 | 2;
+  readonly measurementInterval?: MeasurementInterval;
   readonly totalHemoglobinConcentration?: MeasurementValue;
   readonly previousSaturatedHemoglobinPercentage?: MeasurementValue;
   readonly currentSaturatedHemoglobinPercentage?: MeasurementValue;
@@ -50,52 +55,84 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
   data: DataView,
 ): TState | undefined {
   const updates: Draft<MuscleOxygenSensorState> = {};
-  const oldEventCount = state.eventCount || 0;
+  const oldEventCount = state.eventCount || Constants.DEFAULT_CHANNEL;
   let newEventCount = oldEventCount;
 
-  const page = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const page = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
   switch (page) {
-    case 0x01: {
-      const eventCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-      const notifications = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      const capabilities = data.getUint16(BUFFER_INDEX_MSG_DATA + 3, true);
-      const total = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true) & 0xfff;
+    case Constants.MUSCLE_OXYGEN_PAGE_DATA: {
+      const eventCount = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+      );
+      const notifications = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      const capabilities = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        true,
+      );
+      const total =
+        data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+          true,
+        ) & Constants.MUSCLE_OXYGEN_TOTAL_MASK;
       const previous =
-        (data.getUint16(BUFFER_INDEX_MSG_DATA + 5, true) >> 4) & 0x3ff;
+        (data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+          true,
+        ) >>
+          Constants.MUSCLE_OXYGEN_PREVIOUS_PERCENTAGE_SHIFT) &
+        Constants.MUSCLE_OXYGEN_PERCENTAGE_MASK;
       const current =
-        (data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true) >> 6) & 0x3ff;
+        (data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+          true,
+        ) >>
+          Constants.MUSCLE_OXYGEN_CURRENT_PERCENTAGE_SHIFT) &
+        Constants.MUSCLE_OXYGEN_PERCENTAGE_MASK;
 
       if (eventCount !== oldEventCount) {
         newEventCount = eventCount;
         updates.eventCount = eventCount;
       }
 
-      updates.utcTimeRequired = (notifications & 0x01) === 0x01;
+      updates.utcTimeRequired =
+        (notifications & Constants.MUSCLE_OXYGEN_NOTIFICATION_UTC_REQUIRED) ===
+        Constants.MUSCLE_OXYGEN_NOTIFICATION_UTC_REQUIRED;
 
-      updates.supportANTFS = (capabilities & 0x01) === 0x01;
+      updates.supportANTFS =
+        (capabilities & Constants.MUSCLE_OXYGEN_CAPABILITY_ANTFS) ===
+        Constants.MUSCLE_OXYGEN_CAPABILITY_ANTFS;
 
-      switch ((capabilities >> 1) & 0x7) {
-        case 1:
-          updates.measurementInterval = 0.25;
+      switch (
+        (capabilities >> Constants.MUSCLE_OXYGEN_INTERVAL_SHIFT) &
+        Constants.MUSCLE_OXYGEN_INTERVAL_MASK
+      ) {
+        case Constants.MUSCLE_OXYGEN_INTERVAL_QUARTER_SECONDS:
+          updates.measurementInterval =
+            Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_QUARTER_SECONDS;
           break;
-        case 2:
-          updates.measurementInterval = 0.5;
+        case Constants.MUSCLE_OXYGEN_INTERVAL_HALF_SECONDS:
+          updates.measurementInterval =
+            Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_HALF_SECONDS;
           break;
-        case 3:
-          updates.measurementInterval = 1;
+        case Constants.MUSCLE_OXYGEN_INTERVAL_ONE_SECOND:
+          updates.measurementInterval =
+            Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_ONE_SECOND;
           break;
-        case 4:
-          updates.measurementInterval = 2;
+        case Constants.MUSCLE_OXYGEN_INTERVAL_TWO_SECONDS:
+          updates.measurementInterval =
+            Constants.MUSCLE_OXYGEN_MEASUREMENT_INTERVAL_TWO_SECONDS;
           break;
         default:
           updates.measurementInterval = undefined;
       }
 
       switch (total) {
-        case 0xffe:
+        case Constants.MUSCLE_OXYGEN_TOTAL_AMBIENT_LIGHT_TOO_HIGH:
           updates.totalHemoglobinConcentration = "AmbientLightTooHigh";
           break;
-        case 0xfff:
+        case Constants.MUSCLE_OXYGEN_TOTAL_INVALID:
           updates.totalHemoglobinConcentration = "Invalid";
           break;
         default:
@@ -103,10 +140,10 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
       }
 
       switch (previous) {
-        case 0x3fe:
+        case Constants.MUSCLE_OXYGEN_PERCENTAGE_AMBIENT_LIGHT_TOO_HIGH:
           updates.previousSaturatedHemoglobinPercentage = "AmbientLightTooHigh";
           break;
-        case 0x3ff:
+        case Constants.MUSCLE_OXYGEN_PERCENTAGE_INVALID:
           updates.previousSaturatedHemoglobinPercentage = "Invalid";
           break;
         default:
@@ -114,10 +151,10 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
       }
 
       switch (current) {
-        case 0x3fe:
+        case Constants.MUSCLE_OXYGEN_PERCENTAGE_AMBIENT_LIGHT_TOO_HIGH:
           updates.currentSaturatedHemoglobinPercentage = "AmbientLightTooHigh";
           break;
-        case 0x3ff:
+        case Constants.MUSCLE_OXYGEN_PERCENTAGE_INVALID:
           updates.currentSaturatedHemoglobinPercentage = "Invalid";
           break;
         default:
@@ -126,54 +163,88 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
 
       break;
     }
-    case 0x50: {
-      updates.hwVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      updates.manId = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-      updates.modelNum = data.getUint16(BUFFER_INDEX_MSG_DATA + 6, true);
+    case Constants.DATA_PAGE_COMMON_MANUFACTURER_INFO: {
+      updates.hwVersion = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      updates.manId = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
+      updates.modelNum = data.getUint16(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        true,
+      );
       break;
     }
-    case 0x51: {
-      const swRevSup = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-      const swRevMain = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-      const serial = data.getInt32(BUFFER_INDEX_MSG_DATA + 4, true);
+    case Constants.DATA_PAGE_COMMON_PRODUCT_INFO: {
+      const swRevSup = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
+      const swRevMain = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+      );
+      const serial = data.getInt32(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+        true,
+      );
 
       updates.swVersion = swRevMain;
 
-      if (swRevSup !== 0xff) {
-        updates.swVersion += swRevSup / 1000;
+      if (swRevSup !== Constants.INVALID_BYTE) {
+        updates.swVersion += swRevSup / Constants.MUSCLE_OXYGEN_SW_SUP_SCALE;
       }
 
-      if (serial !== 0xffffffff) {
+      if (serial !== Constants.INVALID_UINT32) {
         updates.serialNumber = serial;
       }
 
       break;
     }
-    case 0x52: {
-      updates.batteryId = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
+    case Constants.DATA_PAGE_COMMON_BATTERY_STATUS: {
+      updates.batteryId = data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+      );
       const operatingTime =
-        data.getUint32(BUFFER_INDEX_MSG_DATA + 3, true) & 0xffffff;
-      const batteryFrac = data.getInt32(BUFFER_INDEX_MSG_DATA + 6, true);
-      const batteryStatus = data.getInt32(BUFFER_INDEX_MSG_DATA + 7, true);
+        data.getUint32(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+          true,
+        ) & Constants.MUSCLE_OXYGEN_OPERATING_TIME_MASK;
+      const batteryFrac = data.getInt32(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        true,
+      );
+      const batteryStatus = data.getInt32(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+        true,
+      );
 
       updates.operatingTime =
-        operatingTime * ((batteryStatus & 0x80) === 0x80 ? 2 : 16);
-      updates.batteryVoltage = (batteryStatus & 0x0f) + batteryFrac / 256;
-      const batteryFlags = (batteryStatus & 0x70) >>> 4;
+        operatingTime *
+        ((batteryStatus & Constants.MUSCLE_OXYGEN_OPERATING_TIME_2S_FLAG) ===
+        Constants.MUSCLE_OXYGEN_OPERATING_TIME_2S_FLAG
+          ? Constants.MUSCLE_OXYGEN_OPERATING_TIME_2S_SCALE
+          : Constants.MUSCLE_OXYGEN_OPERATING_TIME_16S_SCALE);
+      updates.batteryVoltage =
+        (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
+        batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+      const batteryFlags =
+        (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
+        Constants.BATTERY_STATUS_SHIFT;
       switch (batteryFlags) {
-        case 1:
+        case Constants.BATTERY_STATUS_NEW:
           updates.batteryStatus = "New";
           break;
-        case 2:
+        case Constants.BATTERY_STATUS_GOOD:
           updates.batteryStatus = "Good";
           break;
-        case 3:
+        case Constants.BATTERY_STATUS_OK:
           updates.batteryStatus = "Ok";
           break;
-        case 4:
+        case Constants.BATTERY_STATUS_LOW:
           updates.batteryStatus = "Low";
           break;
-        case 5:
+        case Constants.BATTERY_STATUS_CRITICAL:
           updates.batteryStatus = "Critical";
           break;
         default:
@@ -188,13 +259,20 @@ export function decodeMuscleOxygen<TState extends MuscleOxygenSensorState>(
   }
 
   updates.receivedAt = Date.now();
-  if (page !== 0x01 || newEventCount !== oldEventCount) {
+  if (
+    page !== Constants.MUSCLE_OXYGEN_PAGE_DATA ||
+    newEventCount !== oldEventCount
+  ) {
     return { ...state, ...updates } as TState;
   }
   return undefined;
 }
 
-export type TimeCommand = 0x00 | 0x01 | 0x02 | 0x03;
+export type TimeCommand =
+  | typeof Constants.MUSCLE_OXYGEN_TIME_COMMAND_SET_UTC
+  | typeof Constants.MUSCLE_OXYGEN_TIME_COMMAND_START_SESSION
+  | typeof Constants.MUSCLE_OXYGEN_TIME_COMMAND_STOP_SESSION
+  | typeof Constants.MUSCLE_OXYGEN_TIME_COMMAND_SET_LAP;
 
 export interface TimeCommandOptions {
   /** The wall clock time to encode. Defaults to the current time. */
@@ -208,26 +286,38 @@ export interface TimeCommandOptions {
  */
 export function buildTimeCommandPayload(cmd: TimeCommand, now: Date): number[] {
   const utc = Math.round(
-    (now.getTime() - Date.UTC(1989, 11, 31, 0, 0, 0, 0)) / 1000,
+    (now.getTime() -
+      Date.UTC(
+        Constants.MUSCLE_OXYGEN_ANT_EPOCH_YEAR,
+        Constants.MUSCLE_OXYGEN_ANT_EPOCH_MONTH,
+        Constants.MUSCLE_OXYGEN_ANT_EPOCH_DAY,
+        Constants.DEFAULT_CHANNEL,
+        Constants.DEFAULT_CHANNEL,
+        Constants.DEFAULT_CHANNEL,
+        Constants.DEFAULT_CHANNEL,
+      )) /
+      Constants.MUSCLE_OXYGEN_SECONDS_PER_MILLISECOND,
   );
-  const offset = -Math.round(now.getTimezoneOffset() / 15);
+  const offset = -Math.round(
+    now.getTimezoneOffset() / Constants.MUSCLE_OXYGEN_TIMEZONE_STEP_MINUTES,
+  );
   return [
-    0x10,
-    cmd & 0xff,
-    0xff,
-    offset & 0xff,
-    (utc >> 0) & 0xff,
-    (utc >> 8) & 0xff,
-    (utc >> 16) & 0xff,
-    (utc >> 24) & 0xff,
+    Constants.DATA_PAGE_TIME_COMMAND,
+    cmd & Constants.BYTE_MASK,
+    Constants.INVALID_BYTE,
+    offset & Constants.BYTE_MASK,
+    (utc >> Constants.DEFAULT_CHANNEL) & Constants.BYTE_MASK,
+    (utc >> Constants.BYTE_BITS) & Constants.BYTE_MASK,
+    (utc >> Constants.UINT16_BITS) & Constants.BYTE_MASK,
+    (utc >> Constants.UINT24_BITS) & Constants.BYTE_MASK,
   ];
 }
 
 export class MuscleOxygenSensor extends AntPlusSensor<MuscleOxygenSensorState> {
-  static readonly deviceType = 0x1f;
+  static readonly deviceType = Constants.DEVICE_TYPE_MUSCLE_OXYGEN;
 
   protected readonly deviceType = MuscleOxygenSensor.deviceType;
-  protected readonly period = 8192;
+  protected readonly period = Constants.PERIOD_MUSCLE_OXYGEN;
 
   protected createState(deviceId: number): MuscleOxygenSensorState {
     return { deviceId };
@@ -251,27 +341,39 @@ export class MuscleOxygenSensor extends AntPlusSensor<MuscleOxygenSensorState> {
 
   /** Sends the device the current UTC time. */
   setUTCTime(options: TimeCommandOptions = {}): Promise<boolean> {
-    return this.#sendTimeCommand(0x00, options);
+    return this.#sendTimeCommand(
+      Constants.MUSCLE_OXYGEN_TIME_COMMAND_SET_UTC,
+      options,
+    );
   }
 
   /** Starts a new session on the device. */
   startSession(options: TimeCommandOptions = {}): Promise<boolean> {
-    return this.#sendTimeCommand(0x01, options);
+    return this.#sendTimeCommand(
+      Constants.MUSCLE_OXYGEN_TIME_COMMAND_START_SESSION,
+      options,
+    );
   }
 
   /** Stops the current session on the device. */
   stopSession(options: TimeCommandOptions = {}): Promise<boolean> {
-    return this.#sendTimeCommand(0x02, options);
+    return this.#sendTimeCommand(
+      Constants.MUSCLE_OXYGEN_TIME_COMMAND_STOP_SESSION,
+      options,
+    );
   }
 
   /** Marks a lap in the current session. */
   setLap(options: TimeCommandOptions = {}): Promise<boolean> {
-    return this.#sendTimeCommand(0x03, options);
+    return this.#sendTimeCommand(
+      Constants.MUSCLE_OXYGEN_TIME_COMMAND_SET_LAP,
+      options,
+    );
   }
 }
 
 export class MuscleOxygenScanner extends AntPlusScanner<MuscleOxygenScanState> {
-  static readonly deviceType = 0x1f;
+  static readonly deviceType = Constants.DEVICE_TYPE_MUSCLE_OXYGEN;
 
   protected readonly deviceType = MuscleOxygenScanner.deviceType;
 

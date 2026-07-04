@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/stride-based-speed-and-distance-monitor/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -41,27 +41,62 @@ export function decodeStrideSpeedDistance<
   TState extends StrideSpeedDistanceSensorState,
 >(state: Readonly<TState>, data: DataView): TState {
   const updates: Draft<StrideSpeedDistanceSensorState> = {};
-  const page = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const page = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
 
-  if (page === 1) {
-    updates.timeFractional = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-    updates.timeInteger = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-    updates.distanceInteger = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-    updates.distanceFractional = data.getUint8(BUFFER_INDEX_MSG_DATA + 4) >>> 4;
-    updates.speedInteger = data.getUint8(BUFFER_INDEX_MSG_DATA + 4) & 0x0f;
-    updates.speedFractional = data.getUint8(BUFFER_INDEX_MSG_DATA + 5);
-    updates.strideCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-    updates.updateLatency = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
-  } else if (page >= 2 && page <= 15) {
-    updates.cadenceInteger = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-    updates.cadenceFractional = data.getUint8(BUFFER_INDEX_MSG_DATA + 4) >>> 4;
-    updates.speedInteger = data.getUint8(BUFFER_INDEX_MSG_DATA + 4) & 0x0f;
-    updates.speedFractional = data.getUint8(BUFFER_INDEX_MSG_DATA + 5);
-    updates.status = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+  if (page === Constants.STRIDE_SPEED_DISTANCE_PAGE_TIME_DISTANCE_SPEED) {
+    updates.timeFractional = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+    );
+    updates.timeInteger = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+    );
+    updates.distanceInteger = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+    );
+    updates.distanceFractional =
+      data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      ) >>> Constants.NIBBLE_BITS;
+    updates.speedInteger =
+      data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      ) & Constants.NIBBLE_MASK;
+    updates.speedFractional = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+    );
+    updates.strideCount = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+    );
+    updates.updateLatency = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+    );
+  } else if (
+    page >= Constants.STRIDE_SPEED_DISTANCE_PAGE_COMMON_MIN &&
+    page <= Constants.STRIDE_SPEED_DISTANCE_PAGE_COMMON_MAX
+  ) {
+    updates.cadenceInteger = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+    );
+    updates.cadenceFractional =
+      data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      ) >>> Constants.NIBBLE_BITS;
+    updates.speedInteger =
+      data.getUint8(
+        Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+      ) & Constants.NIBBLE_MASK;
+    updates.speedFractional = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_5,
+    );
+    updates.status = data.getUint8(
+      Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+    );
 
     switch (page) {
-      case 3:
-        updates.calories = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
+      case Constants.STRIDE_SPEED_DISTANCE_PAGE_CALORIES:
+        updates.calories = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+        );
         break;
       default:
         break;
@@ -74,10 +109,10 @@ export function decodeStrideSpeedDistance<
 }
 
 export class StrideSpeedDistanceSensor extends AntPlusSensor<StrideSpeedDistanceSensorState> {
-  static readonly deviceType = 124;
+  static readonly deviceType = Constants.DEVICE_TYPE_STRIDE_SPEED_DISTANCE;
 
   protected readonly deviceType = StrideSpeedDistanceSensor.deviceType;
-  protected readonly period = 8134;
+  protected readonly period = Constants.PERIOD_STRIDE_SPEED_DISTANCE;
 
   protected createState(deviceId: number): StrideSpeedDistanceSensorState {
     return { deviceId };
@@ -92,7 +127,7 @@ export class StrideSpeedDistanceSensor extends AntPlusSensor<StrideSpeedDistance
 }
 
 export class StrideSpeedDistanceScanner extends AntPlusScanner<StrideSpeedDistanceScanState> {
-  static readonly deviceType = 124;
+  static readonly deviceType = Constants.DEVICE_TYPE_STRIDE_SPEED_DISTANCE;
 
   protected readonly deviceType = StrideSpeedDistanceScanner.deviceType;
 

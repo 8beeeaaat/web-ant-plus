@@ -3,11 +3,11 @@ import { Constants } from "./constants.js";
 /** An encoded ANT message, always backed by a plain ArrayBuffer. */
 export type AntMessage = DataView<ArrayBuffer>;
 
-export const BUFFER_INDEX_MSG_LEN = 1;
-export const BUFFER_INDEX_MSG_TYPE = 2;
-export const BUFFER_INDEX_CHANNEL_NUM = 3;
-export const BUFFER_INDEX_MSG_DATA = 4;
-export const BUFFER_INDEX_EXT_MSG_BEGIN = 12;
+export const BUFFER_INDEX_MSG_LEN = Constants.BUFFER_INDEX_MSG_LEN;
+export const BUFFER_INDEX_MSG_TYPE = Constants.BUFFER_INDEX_MSG_TYPE;
+export const BUFFER_INDEX_CHANNEL_NUM = Constants.BUFFER_INDEX_CHANNEL_NUM;
+export const BUFFER_INDEX_MSG_DATA = Constants.BUFFER_INDEX_MSG_DATA;
+export const BUFFER_INDEX_EXT_MSG_BEGIN = Constants.BUFFER_INDEX_EXT_MSG_BEGIN;
 
 export type ChannelType =
   | "receive"
@@ -27,7 +27,10 @@ const CHANNEL_TYPE_CODES: Record<ChannelType, number> = {
 };
 
 export function getChecksum(message: readonly number[]): number {
-  return message.reduce((acc, byte) => (acc ^ byte) % 0xff, 0);
+  return message.reduce(
+    (acc, byte) => (acc ^ byte) % Constants.MESSAGE_CHECKSUM_MODULO,
+    Constants.DEFAULT_CHANNEL,
+  );
 }
 
 export function buildMessage(
@@ -45,16 +48,22 @@ export function buildMessage(
 }
 
 /** Encodes an unsigned integer as little-endian bytes of a fixed width. */
-export function intToLEByteArray(value: number, numBytes = 1): number[] {
+export function intToLEByteArray(
+  value: number,
+  numBytes: number = Constants.DEFAULT_INT_BYTE_LENGTH,
+): number[] {
   const bytes: number[] = [];
-  for (let i = 0; i < numBytes; i++) {
-    bytes.push((value >>> (8 * i)) & 0xff);
+  for (let i = Constants.DEFAULT_CHANNEL; i < numBytes; i++) {
+    bytes.push((value >>> (Constants.BYTE_BITS * i)) & Constants.BYTE_MASK);
   }
   return bytes;
 }
 
 export function resetSystem(): AntMessage {
-  return buildMessage([0x00], Constants.MESSAGE_SYSTEM_RESET);
+  return buildMessage(
+    [Constants.DEFAULT_CHANNEL],
+    Constants.MESSAGE_SYSTEM_RESET,
+  );
 }
 
 export function requestMessage(channel: number, messageId: number): AntMessage {
@@ -63,17 +72,7 @@ export function requestMessage(channel: number, messageId: number): AntMessage {
 
 export function setNetworkKey(): AntMessage {
   return buildMessage(
-    [
-      Constants.DEFAULT_NETWORK_NUMBER,
-      0xb9,
-      0xa5,
-      0x21,
-      0xfb,
-      0xbd,
-      0x72,
-      0xc3,
-      0x45,
-    ],
+    [Constants.DEFAULT_NETWORK_NUMBER, ...Constants.ANT_NETWORK_KEY],
     Constants.MESSAGE_NETWORK_KEY,
   );
 }
@@ -95,7 +94,12 @@ export function setDevice(
   transmissionType: number,
 ): AntMessage {
   return buildMessage(
-    [channel, ...intToLEByteArray(deviceId, 2), deviceType, transmissionType],
+    [
+      channel,
+      ...intToLEByteArray(deviceId, Constants.UINT16_BYTE_LENGTH),
+      deviceType,
+      transmissionType,
+    ],
     Constants.MESSAGE_CHANNEL_ID,
   );
 }
@@ -109,7 +113,7 @@ export function searchChannel(channel: number, timeout: number): AntMessage {
 
 export function setPeriod(channel: number, period: number): AntMessage {
   return buildMessage(
-    [channel, ...intToLEByteArray(period, 2)],
+    [channel, ...intToLEByteArray(period, Constants.UINT16_BYTE_LENGTH)],
     Constants.MESSAGE_CHANNEL_PERIOD,
   );
 }
@@ -122,7 +126,10 @@ export function setFrequency(channel: number, frequency: number): AntMessage {
 }
 
 export function setRxExt(): AntMessage {
-  return buildMessage([0x00, 0x01], Constants.MESSAGE_ENABLE_RX_EXT);
+  return buildMessage(
+    [Constants.DEFAULT_CHANNEL, Constants.CAPABILITIES_LED_ENABLED],
+    Constants.MESSAGE_ENABLE_RX_EXT,
+  );
 }
 
 export function libConfig(channel: number, how: number): AntMessage {
@@ -130,7 +137,10 @@ export function libConfig(channel: number, how: number): AntMessage {
 }
 
 export function openRxScan(): AntMessage {
-  return buildMessage([0x00, 0x01], Constants.MESSAGE_CHANNEL_OPEN_RX_SCAN);
+  return buildMessage(
+    [Constants.DEFAULT_CHANNEL, Constants.CAPABILITIES_LED_ENABLED],
+    Constants.MESSAGE_CHANNEL_OPEN_RX_SCAN,
+  );
 }
 
 export function openChannel(channel: number): AntMessage {

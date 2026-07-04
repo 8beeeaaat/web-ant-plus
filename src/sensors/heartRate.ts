@@ -3,7 +3,7 @@
  * Spec sheet: https://www.thisisant.com/resources/heart-rate-monitor/
  */
 
-import { BUFFER_INDEX_MSG_DATA } from "../messages.js";
+import { Constants } from "../constants.js";
 import {
   AntPlusScanner,
   AntPlusSensor,
@@ -44,11 +44,9 @@ export interface PageTracker {
 }
 
 export const INITIAL_PAGE_TRACKER: PageTracker = {
-  oldPage: -1,
+  oldPage: Constants.HEART_RATE_INITIAL_OLD_PAGE,
   pageState: "init",
 };
-
-const TOGGLE_MASK = 0x80;
 
 type Draft<T> = { -readonly [K in keyof T]?: T[K] };
 
@@ -62,7 +60,7 @@ export function decodeHeartRate<TState extends HeartRateSensorState>(
   page: PageTracker,
 ): { state: TState; page: PageTracker } {
   const updates: Draft<HeartRateSensorState> = {};
-  const pageNum = data.getUint8(BUFFER_INDEX_MSG_DATA);
+  const pageNum = data.getUint8(Constants.BUFFER_INDEX_MSG_DATA);
   let pageState = page.pageState;
 
   if (page.pageState === "init") {
@@ -71,66 +69,110 @@ export function decodeHeartRate<TState extends HeartRateSensorState>(
   } else if (pageNum !== page.oldPage || page.pageState === "extended") {
     // Decode with pages if the page byte or the toggle bit has changed.
     pageState = "extended";
-    switch (pageNum & ~TOGGLE_MASK) {
-      case 1: {
+    switch (pageNum & ~Constants.TOGGLE_MASK) {
+      case Constants.DATA_PAGE_OPERATING_TIME: {
         // Cumulative operating time.
-        let operatingTime = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-        operatingTime |= data.getUint8(BUFFER_INDEX_MSG_DATA + 2) << 8;
-        operatingTime |= data.getUint8(BUFFER_INDEX_MSG_DATA + 3) << 16;
-        updates.operatingTime = operatingTime * 2;
+        let operatingTime = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        );
+        operatingTime |=
+          data.getUint8(
+            Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+          ) << Constants.BYTE_BITS;
+        operatingTime |=
+          data.getUint8(
+            Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+          ) << Constants.UINT16_BITS;
+        updates.operatingTime =
+          operatingTime * Constants.BIKE_OPERATING_TIME_SCALE;
         break;
       }
-      case 2: {
+      case Constants.DATA_PAGE_MANUFACTURER_INFO: {
         // Manufacturer id and the 4 byte serial number.
-        updates.manId = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
+        updates.manId = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        );
         updates.serialNumber =
           (state.deviceId |
-            (data.getUint16(BUFFER_INDEX_MSG_DATA + 2, true) << 16)) >>>
-          0;
+            (data.getUint16(
+              Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+              true,
+            ) <<
+              Constants.UINT16_BITS)) >>>
+          Constants.DEFAULT_CHANNEL;
         break;
       }
-      case 3:
+      case Constants.DATA_PAGE_PRODUCT_INFO:
         // HW version, SW version and model number.
-        updates.hwVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-        updates.swVersion = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-        updates.modelNum = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
+        updates.hwVersion = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        );
+        updates.swVersion = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        );
+        updates.modelNum = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        );
         break;
-      case 4:
+      case Constants.HEART_RATE_PAGE_PREVIOUS_BEAT:
         // Previous heart beat measurement time.
-        updates.previousBeat = data.getUint16(BUFFER_INDEX_MSG_DATA + 2, true);
+        updates.previousBeat = data.getUint16(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+          true,
+        );
         break;
-      case 5:
-        updates.intervalAverage = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-        updates.intervalMax = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-        updates.sessionAverage = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
+      case Constants.HEART_RATE_PAGE_INTERVAL_STATS:
+        updates.intervalAverage = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        );
+        updates.intervalMax = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        );
+        updates.sessionAverage = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        );
         break;
-      case 6:
-        updates.supportedFeatures = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-        updates.enabledFeatures = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
+      case Constants.HEART_RATE_PAGE_FEATURES:
+        updates.supportedFeatures = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        );
+        updates.enabledFeatures = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        );
         break;
-      case 7: {
-        const batteryLevel = data.getUint8(BUFFER_INDEX_MSG_DATA + 1);
-        const batteryFrac = data.getUint8(BUFFER_INDEX_MSG_DATA + 2);
-        const batteryStatus = data.getUint8(BUFFER_INDEX_MSG_DATA + 3);
-        if (batteryLevel !== 0xff) {
+      case Constants.HEART_RATE_PAGE_BATTERY_STATUS: {
+        const batteryLevel = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_1,
+        );
+        const batteryFrac = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_2,
+        );
+        const batteryStatus = data.getUint8(
+          Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_3,
+        );
+        if (batteryLevel !== Constants.INVALID_BYTE) {
           updates.batteryLevel = batteryLevel;
         }
-        updates.batteryVoltage = (batteryStatus & 0x0f) + batteryFrac / 256;
-        const batteryFlags = (batteryStatus & 0x70) >>> 4;
+        updates.batteryVoltage =
+          (batteryStatus & Constants.BATTERY_VOLTAGE_INTEGER_MASK) +
+          batteryFrac / Constants.BATTERY_VOLTAGE_FRACTION_SCALE;
+        const batteryFlags =
+          (batteryStatus & Constants.BATTERY_STATUS_MASK) >>>
+          Constants.BATTERY_STATUS_SHIFT;
         switch (batteryFlags) {
-          case 1:
+          case Constants.BATTERY_STATUS_NEW:
             updates.batteryStatus = "New";
             break;
-          case 2:
+          case Constants.BATTERY_STATUS_GOOD:
             updates.batteryStatus = "Good";
             break;
-          case 3:
+          case Constants.BATTERY_STATUS_OK:
             updates.batteryStatus = "Ok";
             break;
-          case 4:
+          case Constants.BATTERY_STATUS_LOW:
             updates.batteryStatus = "Low";
             break;
-          case 5:
+          case Constants.BATTERY_STATUS_CRITICAL:
             updates.batteryStatus = "Critical";
             break;
           default:
@@ -146,9 +188,16 @@ export function decodeHeartRate<TState extends HeartRateSensorState>(
   }
 
   // The default HRM data (last four bytes of every page).
-  updates.beatTime = data.getUint16(BUFFER_INDEX_MSG_DATA + 4, true);
-  updates.beatCount = data.getUint8(BUFFER_INDEX_MSG_DATA + 6);
-  updates.computedHeartRate = data.getUint8(BUFFER_INDEX_MSG_DATA + 7);
+  updates.beatTime = data.getUint16(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_4,
+    true,
+  );
+  updates.beatCount = data.getUint8(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_6,
+  );
+  updates.computedHeartRate = data.getUint8(
+    Constants.BUFFER_INDEX_MSG_DATA + Constants.PAYLOAD_OFFSET_7,
+  );
   updates.receivedAt = Date.now();
 
   return {
@@ -158,10 +207,10 @@ export function decodeHeartRate<TState extends HeartRateSensorState>(
 }
 
 export class HeartRateSensor extends AntPlusSensor<HeartRateSensorState> {
-  static readonly deviceType = 120;
+  static readonly deviceType = Constants.DEVICE_TYPE_HEART_RATE;
 
   protected readonly deviceType = HeartRateSensor.deviceType;
-  protected readonly period = 8070;
+  protected readonly period = Constants.PERIOD_HEART_RATE;
 
   #page: PageTracker = INITIAL_PAGE_TRACKER;
 
@@ -181,7 +230,7 @@ export class HeartRateSensor extends AntPlusSensor<HeartRateSensorState> {
 }
 
 export class HeartRateScanner extends AntPlusScanner<HeartRateScanState> {
-  static readonly deviceType = 120;
+  static readonly deviceType = Constants.DEVICE_TYPE_HEART_RATE;
 
   protected readonly deviceType = HeartRateScanner.deviceType;
 
