@@ -4,8 +4,8 @@ import {
   CancellationToken,
   type ICancellationToken,
 } from "./ICancellationToken";
-import { Messages } from "./Messages";
 import { EventEmitter } from "./lib/EventEmitter";
+import { Messages } from "./Messages";
 import type { BaseSensor } from "./sensors/BaseSensor";
 
 export interface SupportedVendors {
@@ -274,7 +274,9 @@ export class USBDriver extends EventEmitter {
     if (this.outEndpoint === undefined) {
       throw new Error("No out endpoint");
     }
-    await this.device?.transferOut(this.outEndpoint?.endpointNumber, data);
+    const bytes = new Uint8Array(data.byteLength);
+    bytes.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+    await this.device?.transferOut(this.outEndpoint?.endpointNumber, bytes);
   }
 
   public async read(data: DataView) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BicyclePowerSensor,
   type BicyclePowerSensorState,
@@ -24,7 +24,6 @@ function App() {
     useState<BicyclePowerSensor>();
 
   const [connected, setConnected] = useState(stick?.isScanning());
-  const [heartbeat, setHeartbeat] = useState(0);
   const [hrState, setHRState] = useState<Array<HeartRateSensorState>>([]);
   const [speedState, setSpeedState] = useState<Array<SpeedCadenceSensorState>>(
     [],
@@ -32,6 +31,21 @@ function App() {
   const [powerState, setPowerState] = useState<Array<BicyclePowerSensorState>>(
     [],
   );
+
+  const onHeartRateData = useCallback((state: HeartRateSensorState) => {
+    console.log(state);
+    setHRState((prev) => [...prev, state]);
+  }, []);
+
+  const onSpeedData = useCallback((state: SpeedCadenceSensorState) => {
+    console.log(state);
+    setSpeedState((prev) => [...prev, state]);
+  }, []);
+
+  const onBicyclePowerData = useCallback((state: BicyclePowerSensorState) => {
+    console.log(state);
+    setPowerState((prev) => [...prev, state]);
+  }, []);
 
   useEffect(() => {
     if (!stick) {
@@ -76,25 +90,15 @@ function App() {
     } else {
       setBicyclePowerSensor(new BicyclePowerSensor(stick));
     }
-  }, [stick, heartRateSensor, speedCadenceSensor, bicyclePowerSensor]);
-
-  const onHeartRateData = (state: HeartRateSensorState) => {
-    console.log(state);
-    setHRState((prev) => [...prev, state]);
-    setHeartbeat((prev) => prev + 1);
-  };
-
-  const onSpeedData = (state: SpeedCadenceSensorState) => {
-    console.log(state);
-    setSpeedState((prev) => [...prev, state]);
-    setHeartbeat((prev) => prev + 1);
-  };
-
-  const onBicyclePowerData = (state: BicyclePowerSensorState) => {
-    console.log(state);
-    setPowerState((prev) => [...prev, state]);
-    setHeartbeat((prev) => prev + 1);
-  };
+  }, [
+    stick,
+    heartRateSensor,
+    speedCadenceSensor,
+    bicyclePowerSensor,
+    onHeartRateData,
+    onSpeedData,
+    onBicyclePowerData,
+  ]);
 
   async function handleClickSearchDevice() {
     console.log("searching...");

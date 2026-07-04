@@ -1,17 +1,18 @@
 {
-  "include": ["./src/**/*.ts", "src/index.ts"],
+  "include": ["src/**/*.ts"],
   "compilerOptions": {
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["DOM", "ESNext"],
-    "module": "ES6",
-    "moduleResolution": "node",
+    "lib": ["DOM", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "outDir": "./dist",
+    "rootDir": "./src",
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "target": "ES6",
-    "typeRoots": ["./node_modules/@types"]
+    "target": "ES2022",
+    "types": ["w3c-web-usb"]
   }
 }

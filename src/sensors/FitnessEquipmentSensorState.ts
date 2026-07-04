@@ -789,7 +789,6 @@ export class FitnessEquipmentSensorState {
         const tot = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 2);
         const chState = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 3);
         const devId = data.getUint16(Messages.BUFFER_INDEX_MSG_DATA + 4, true);
-        const trType = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 6);
         const devType = data.getUint8(Messages.BUFFER_INDEX_MSG_DATA + 7);
 
         if (idx === 0) {
