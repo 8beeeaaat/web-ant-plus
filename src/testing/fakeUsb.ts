@@ -133,10 +133,8 @@ export class FakeUSBDevice {
    * - setNetworkKey -> CHANNEL_EVENT frame for MESSAGE_NETWORK_KEY
    */
   respondToHandshake(options: HandshakeOptions = {}): void {
-    const {
-      maxChannels = Constants.CAPABILITIES_NO_TRANSMIT_MESSAGES,
-      canScan = true,
-    } = options;
+    const { maxChannels = Constants.USB_DEFAULT_MAX_CHANNELS, canScan = true } =
+      options;
     this.#onSent = (message) => {
       const messageId = message[Constants.BUFFER_INDEX_MSG_TYPE];
       if (messageId === Constants.MESSAGE_SYSTEM_RESET) {
