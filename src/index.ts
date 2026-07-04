@@ -1,4 +1,3 @@
-export { USBDriver } from "./USBDriver";
 export { Constants } from "./Constants";
 export { GarminStick2 } from "./GarminStick2";
 export { GarminStick3 } from "./GarminStick3";
@@ -44,3 +43,4 @@ export { StrideSpeedDistanceScanner } from "./sensors/StrideSpeedDistanceScanner
 export { StrideSpeedDistanceScanState } from "./sensors/StrideSpeedDistanceScanState";
 export { StrideSpeedDistanceSensor } from "./sensors/StrideSpeedDistanceSensor";
 export { StrideSpeedDistanceSensorState } from "./sensors/StrideSpeedDistanceSensorState";
+export { USBDriver } from "./USBDriver";

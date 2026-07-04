@@ -3,8 +3,8 @@
  * Spec sheet: https://www.thisisant.com/resources/heart-rate-monitor/
  */
 
-import { Messages } from "../Messages";
 import { type Page, PageState } from "../ant";
+import { Messages } from "../Messages";
 
 export class HeartRateSensorState {
   constructor(deviceId: number) {

@@ -1,8 +1,8 @@
+import type { SendCallback } from "../ant";
 import { Constants } from "../Constants";
+import { EventEmitter } from "../lib/EventEmitter";
 import { Messages } from "../Messages";
 import type { USBDriver } from "../USBDriver";
-import type { SendCallback } from "../ant";
-import { EventEmitter } from "../lib/EventEmitter";
 
 export type AttachProps = {
   channel: number;
