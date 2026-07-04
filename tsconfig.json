@@ -2,17 +2,24 @@
   "include": ["src/**/*.ts"],
   "compilerOptions": {
     "target": "ES2022",
+    // v3 is an ESM package, so validate emitted modules against Node.js ESM semantics.
     "module": "NodeNext",
+    // Resolve package.json type/exports and .js extension imports with the same rules as Node.js.
     "moduleResolution": "NodeNext",
     "lib": ["DOM", "ES2022"],
     "strict": true,
+    // Make out-of-bounds byte-array access in ANT+ message parsing visible as possible undefined.
     "noUncheckedIndexedAccess": true,
+    // Preserve import/export syntax so type imports and value imports stay explicit in ESM.
     "verbatimModuleSyntax": true,
+    // Ensure each file can be transformed in isolation for Vite, Vitest, and similar tools.
     "isolatedModules": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    // Emit type definitions for npm consumers.
     "declaration": true,
+    // Let consuming editors jump from emitted type definitions back to the original source.
     "declarationMap": true,
     "sourceMap": true,
     "rootDir": "./src",
